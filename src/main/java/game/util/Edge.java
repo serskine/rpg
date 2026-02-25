@@ -10,4 +10,8 @@ public class Edge<Vertex, Path> {
         this.to = to;
         this.path = path;
     }
+
+    public Path weight() {
+        return path;
+    }
 }
