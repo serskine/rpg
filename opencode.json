@@ -1,0 +1,30 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "permission": {
+    "bash": {
+      "*": "allow",
+      "wget *": "ask",
+      "mv *": "ask",
+      "chmod *": "ask",
+      "export": "ask",
+
+      "rm *": "deny",
+      "sudo *": "deny",
+      "dd *": "deny",
+      "chown *": "deny",
+      "curl *": "ask",
+      "env": "deny",
+      "kill *": "deny",
+      "format *": "deny",
+      "mkfs *": "deny"
+    },
+    "external_directory": {
+      "*": "ask",
+      "~/.m2/settings.xml": "allow",
+    },
+    "edit": {
+      "~/.m2/settings.xml": "deny",
+      "~/.chd/chd.properties": "deny"
+    }
+  }
+}
