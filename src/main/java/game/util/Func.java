@@ -1,9 +1,10 @@
 package game.util;
 
-import game.world.Rarity;
+import game.common.Rarity;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 
 public class Func {
 
@@ -55,6 +56,10 @@ public class Func {
         return rolls;
     }
 
+    public static final int sumRoll(final int num, final int size) {
+        return sum(roll(num, size));
+    }
+
     public static final int advantage(final int num, final int size) {
         return max(roll(num, size));
     }
@@ -94,4 +99,5 @@ public class Func {
             return items.stream().skip(index).findFirst().orElseThrow();
         }
     }
+
 }

@@ -1,6 +1,6 @@
-package game.world;
+package game.common;
 
-public enum Room {
+public enum RoomType {
     COURTYARD,
     CRYPT,
     DUNGEON,

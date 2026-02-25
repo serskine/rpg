@@ -19,6 +19,21 @@ public class Graph<Vertex, Path> {
         allVertex.add(to);
     }
 
+    public final void removePath(final Vertex from, final Vertex to) {
+        childMap.getOrDefault(from, Collections.emptyMap()).remove(to);
+        parentMap.getOrDefault(to, Collections.emptyMap()).remove(from);
+    }
+
+    public final void setPathsBetween(final Vertex from, final Vertex to, final Path path) {
+        setPath(from, to, path);
+        setPath(to, from, path);
+    }
+
+    public final void removePathsBetween(final Vertex from, final Vertex to) {
+        removePath(from, to);
+        removePath(to, from);
+    }
+
     public final Map<Vertex, Path> getChildrenOf(Vertex vertex) {
         return Collections.unmodifiableMap(childMap.getOrDefault(vertex, Collections.emptyMap()));
     }
@@ -74,5 +89,7 @@ public class Graph<Vertex, Path> {
         isolateVertex(vertex);
         allVertex.remove(vertex);
     }
+
+
 
 }

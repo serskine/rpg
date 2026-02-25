@@ -1,21 +1,46 @@
-package game.unit;
+package game.common;
 
 import java.util.Optional;
 
+import static game.common.Alignment.NEUTRAL;
+import static game.common.CreatureSize.MEDIUM;
 import static game.util.Func.*;
 
 public class Creature {
+    public Job job;
     public int damage;
     public int movement;
     public int level;
-    public final Job job;
+    public Alignment alignment;
+    public CreatureSize size;
+    public String title;
 
-    private Optional<Integer> stealthDc = Optional.empty();
+    private Optional<Integer> stealthDc;
 
-    public Creature(final Job job, final int level) {
-        this.level = level;
-        this.job = job;
+    public Creature() {
+        this.job = Job.COMMONER;
+        this.damage = 0;
         this.movement = speed();
+        this.level = 1;
+        this.alignment = NEUTRAL;
+        this.size = MEDIUM;
+        this.title = size.name() + "-" + job.name();
+        this.stealthDc = Optional.empty();
+    }
+
+    public Creature copy() {
+        final Creature copy = new Creature();
+
+        copy.job = this.job;
+        copy.damage = this.damage;
+        copy.movement = this.movement;
+        copy.level = this.level;
+        copy.alignment = this.alignment;
+        copy.size = this.size;
+        copy.title = this.title;
+        copy.stealthDc = this.stealthDc;
+
+        return copy;
     }
 
     public int speed() {
@@ -43,7 +68,7 @@ public class Creature {
     }
 
     public final int prof() {
-        return (level-1) / 4 + 2;
+        return (level -1) / 4 + 2;
     }
 
     public final int hd() {
@@ -51,7 +76,7 @@ public class Creature {
     }
 
     public final int maxHp() {
-        return hd() + (hd() - hd()/2) * (level-1) + modifier(constitution()) * level;
+        return hd() + (hd() - hd()/2) * (level -1) + modifier(constitution()) * level;
     }
 
     public final int ac() {
@@ -67,7 +92,30 @@ public class Creature {
     }
 
     public final int bodyWeight() {
-        return (strength() + constitution()) * 5;
+
+        final int mediumWeight = (strength() + constitution()) * 5;
+        int calculatedWeight;
+        switch(size) {
+            case TINY -> {
+                calculatedWeight = mediumWeight / 4;
+            }
+            case SMALL -> {
+                calculatedWeight = mediumWeight / 2;
+            }
+            case LARGE -> {
+                calculatedWeight = mediumWeight * 4;
+            }
+            case HUGE -> {
+                calculatedWeight = mediumWeight * 9;
+            }
+            case GARGANTUAN -> {
+                calculatedWeight = mediumWeight * 16;
+            }
+            default -> {
+                calculatedWeight = mediumWeight;
+            }
+        }
+        return max(1, calculatedWeight);    // Minimum of one pound.
     }
 
     public final Optional<Integer> spellDc() {
@@ -125,12 +173,6 @@ public class Creature {
         return 10 + modifier(wisdom());
     }
 
-    public Creature copy() {
-        final Creature copy = new Creature(job, level);
-        copy.damage = damage;
-        copy.movement = movement;
-        copy.stealthDc = stealthDc;
-        return copy;
-    }
+
     
 }
