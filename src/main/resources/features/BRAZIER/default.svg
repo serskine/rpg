@@ -1,0 +1,35 @@
+<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+  <!-- Brazier - Standing fire container -->
+  <defs>
+    <radialGradient id="fireGradient" cx="50%" cy="50%">
+      <stop offset="0%" style="stop-color:#FFF44F;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#FF9800;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#E65100;stop-opacity:0.8" />
+    </radialGradient>
+    <linearGradient id="metalGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#424242;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#616161;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#424242;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Stand/base -->
+  <rect x="30" y="65" width="40" height="5" fill="url(#metalGradient)" stroke="#212121" stroke-width="1"/>
+  
+  <!-- Legs -->
+  <line x1="35" y1="70" x2="32" y2="85" stroke="#424242" stroke-width="3" stroke-linecap="round"/>
+  <line x1="65" y1="70" x2="68" y2="85" stroke="#424242" stroke-width="3" stroke-linecap="round"/>
+  
+  <!-- Main brazier bowl -->
+  <ellipse cx="50" cy="55" rx="22" ry="18" fill="url(#metalGradient)" stroke="#212121" stroke-width="1.5"/>
+  
+  <!-- Fire flames -->
+  <path d="M 45 45 Q 40 30 45 15 Q 48 28 50 20 Q 52 28 55 15 Q 60 30 55 45 Z" fill="url(#fireGradient)" opacity="0.9"/>
+  <path d="M 48 48 Q 46 38 48 28 Q 50 36 50 32 Q 52 36 52 28 Q 54 38 52 48 Z" fill="#FFF44F" opacity="0.7"/>
+  
+  <!-- Rim detail -->
+  <ellipse cx="50" cy="38" rx="22" ry="5" fill="none" stroke="#616161" stroke-width="1" opacity="0.5"/>
+  
+  <!-- Shadow -->
+  <ellipse cx="50" cy="83" rx="25" ry="2" fill="#000000" opacity="0.15"/>
+</svg>

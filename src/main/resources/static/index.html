@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dungeon World Viewer</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="container">
+        <!-- Left Panel: Controls -->
+        <div id="controlsPanel" class="panel">
+            <h2>World Generator</h2>
+            <div class="control-group">
+                <label for="partySizeInput">Average Party Size:</label>
+                <input type="number" id="partySizeInput" min="1" max="20" value="4">
+            </div>
+            <div class="control-group">
+                <label for="partyLevelInput">Average Party Level:</label>
+                <input type="number" id="partyLevelInput" min="1" max="20" value="5">
+            </div>
+            <button id="generateBtn" class="btn-primary">Generate World</button>
+            
+            <hr>
+            <div id="stats">
+                <h3>World Stats</h3>
+                <p>Total Rooms: <span id="statRooms">0</span></p>
+                <p>Total Paths: <span id="statPaths">0</span></p>
+                <p>Party Size: <span id="statPartySize">0</span></p>
+                <p>Party Level: <span id="statPartyLevel">0</span></p>
+            </div>
+        </div>
+
+        <!-- Right Panel: Tabs -->
+        <div id="rightPanel" class="panel">
+            <!-- Tab Navigation -->
+            <div class="tab-navigation">
+                <button class="tab-btn active" data-tab="dungeonMap">Dungeon Map</button>
+                <button class="tab-btn" data-tab="worldContents">World Contents</button>
+            </div>
+
+            <!-- Tab 1: Dungeon Map -->
+            <div id="dungeonMap" class="tab-content active">
+                <canvas id="dungeonCanvas" width="800" height="600"></canvas>
+            </div>
+
+            <!-- Tab 2: World Contents -->
+            <div id="worldContents" class="tab-content">
+                <div class="contents-split">
+                    <!-- Left: Tree View -->
+                    <div id="treePanel" class="tree-container">
+                        <div id="treeView"></div>
+                    </div>
+                    <!-- Right: Preview Panel -->
+                    <div id="previewPanel" class="preview-container">
+                        <div id="previewContent"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

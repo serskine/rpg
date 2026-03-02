@@ -1,0 +1,3 @@
+<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+  <path d="M 25 50 L 30 30 Q 30 25 35 25 L 65 25 Q 70 25 70 30 L 75 50 Z" fill="#9A8B7A" stroke="#5C4A38" stroke-width="1.5"/><rect x="25" y="50" width="50" height="20" fill="#9A8B7A" stroke="#5C4A38" stroke-width="1.5"/><line x1="50" y1="35" x2="50" y2="55" stroke="#6D5A47" stroke-width="1" opacity="0.5"/><path d="M 45 38 L 50 35 L 55 38" fill="#6D5A47" opacity="0.4"/><text x="50" y="58" text-anchor="middle" font-size="6" fill="#5C4A38" opacity="0.6">RIP</text><ellipse cx="50" cy="72" rx="28" ry="2" fill="#000000" opacity="0.15"/>
+</svg>

@@ -15,13 +15,13 @@ public class DungeonBuilder {
     private int expectedNumberOfRooms(Rarity dungeonRarity) {
         switch(dungeonRarity) {
             case UNCOMMON -> {
-                return d(4);        // 1-4 rooms
+                return 5;        // 1-4 rooms
             }
             case RARE -> {
-                return d(6) + 4;    // 5 - 10 rooms
+                return 11;    // 5 - 10 rooms
             }
             default -> {
-                return d(8) + 10;   // 11 - 18 rooms
+                return 7;   // 11 - 18 rooms
             }
         }
     }
@@ -45,7 +45,7 @@ public class DungeonBuilder {
                 if(chanceOfPath == Rarity.UNCOMMON) {
                     final String title = rooms[i].title + " -> " + rooms[j].title;
                     final Path path = pathBuilder.build(title);
-                    dungeonGraph.setPath(rooms[i], rooms[j], path);
+                    dungeonGraph.setPathsBetween(rooms[i], rooms[j], path);
                 }
             }
         }

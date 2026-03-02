@@ -10,6 +10,7 @@ public class WorldView extends JFrame {
 
     private final DungeonPanel dungeonPanel;
     private final WorldTreePanel worldTreePanel;
+    private final RollTablePanel rollTablePanel;
     private final ControlsPanel controlsPanel;
     private final WorldBuilder worldBuilder;
     private final JTabbedPane tabbedPane;
@@ -17,7 +18,7 @@ public class WorldView extends JFrame {
     public WorldView(int defaultPartySize, int defaultPartyLevel) {
         super("Dungeon World Viewer");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        setSize(1024, 768);
+        setSize(1200, 800);
         setLocationRelativeTo(null);
 
         worldBuilder = new WorldBuilder();
@@ -25,19 +26,28 @@ public class WorldView extends JFrame {
         // Initialize Panels
         dungeonPanel = new DungeonPanel();
         worldTreePanel = new WorldTreePanel();
+        rollTablePanel = new RollTablePanel();
         controlsPanel = new ControlsPanel();
 
         // Configure Controls
         controlsPanel.setDefaults(defaultPartySize, defaultPartyLevel);
         controlsPanel.setOnGenerateListener(this::generateWorld);
 
-        // Setup Tabs
+        // Setup Layout: Controls on West, Tabbed pane for Dungeon/World on Center
         tabbedPane = new JTabbedPane();
-        tabbedPane.addTab("Controls", controlsPanel);
         tabbedPane.addTab("Dungeon Map", dungeonPanel);
         tabbedPane.addTab("World Contents", worldTreePanel);
+        tabbedPane.addTab("Roll Tables", rollTablePanel);
+        tabbedPane.setSelectedIndex(1);
 
-        add(tabbedPane);
+        JSplitPane mainSplit = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, controlsPanel, tabbedPane);
+        mainSplit.setDividerLocation(250);
+        mainSplit.setResizeWeight(0.0);
+        
+        setContentPane(mainSplit);
+        
+        // Setup room selection listener
+        dungeonPanel.setRoomSelectionListener(worldTreePanel::showRoomSelected);
         
         // Initial Generation
         generateWorld(defaultPartySize, defaultPartyLevel);

@@ -3,13 +3,13 @@ package game.common;
 import java.util.Optional;
 
 public class Path {
-    public int distance;
+    public PathDistance distance;
     public Optional<Integer> lockDc;
     public Optional<Integer> stealthDc;
     public String title;
 
     public Path() {
-        distance = 30;
+        distance = PathDistance.MELEE;
         lockDc = Optional.empty();
         stealthDc = Optional.empty();
         title = "Path";
