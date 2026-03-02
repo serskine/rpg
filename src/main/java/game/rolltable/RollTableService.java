@@ -86,7 +86,8 @@ public class RollTableService {
                 recordEntity.getRollTable().getId(),
                 recordEntity.getTitle(),
                 recordEntity.getReferencedTableId(),
-                recordEntity.getWeight()
+                recordEntity.getWeight(),
+                recordEntity.getMetadata()
             );
             results.add(record);
             
@@ -160,6 +161,20 @@ public class RollTableService {
      * @return the created RollTableRecord
      */
     public RollTableRecord addRecordToTable(final int tableId, final String title, final Integer referencedTableId, final int weight) {
+        return addRecordToTable(tableId, title, referencedTableId, weight, null);
+    }
+
+    /**
+     * Adds a record to a roll table with weight and metadata.
+     *
+     * @param tableId the ID of the table to add the record to
+     * @param title the title of the record
+     * @param referencedTableId optional ID of another table to reference (null if none)
+     * @param weight the weight/probability of this record
+     * @param metadata optional JSON metadata (null if none)
+     * @return the created RollTableRecord
+     */
+    public RollTableRecord addRecordToTable(final int tableId, final String title, final Integer referencedTableId, final int weight, final String metadata) {
         final Optional<RollTableEntity> tableOptional = repository.findById(tableId);
         if (!tableOptional.isPresent()) {
             throw new IllegalArgumentException("Roll table with ID " + tableId + " not found");
@@ -167,6 +182,7 @@ public class RollTableService {
 
         final RollTableEntity tableEntity = tableOptional.get();
         final RollTableRecordEntity recordEntity = new RollTableRecordEntity(title, referencedTableId, weight);
+        recordEntity.setMetadata(metadata);
         recordEntity.setRollTable(tableEntity);
         tableEntity.getRecords().add(recordEntity);
         
@@ -178,7 +194,8 @@ public class RollTableService {
             savedRecord.getRollTable().getId(),
             savedRecord.getTitle(),
             savedRecord.getReferencedTableId(),
-            savedRecord.getWeight()
+            savedRecord.getWeight(),
+            savedRecord.getMetadata()
         );
     }
 
@@ -193,7 +210,8 @@ public class RollTableService {
                 recordEntity.getRollTable().getId(),
                 recordEntity.getTitle(),
                 recordEntity.getReferencedTableId(),
-                recordEntity.getWeight()
+                recordEntity.getWeight(),
+                recordEntity.getMetadata()
             );
             table.addRecord(record);
         }

@@ -80,14 +80,14 @@ public class RollTableController {
      * Adds a record to a roll table.
      *
      * @param id the table ID
-     * @param request containing title, optional referencedTableId, and optional weight
+     * @param request containing title, optional referencedTableId, optional weight, and optional metadata
      */
     @PostMapping("/{id}/records")
     public ResponseEntity<RollTableRecord> addRecord(
             @PathVariable final int id,
             @RequestBody final AddRecordRequest request) {
         try {
-            final RollTableRecord record = rollTableService.addRecordToTable(id, request.title, request.referencedTableId, request.weight);
+            final RollTableRecord record = rollTableService.addRecordToTable(id, request.title, request.referencedTableId, request.weight, request.metadata);
             return ResponseEntity.ok(record);
         } catch (final IllegalArgumentException e) {
             return ResponseEntity.notFound().build();
@@ -109,5 +109,6 @@ public class RollTableController {
         public String title;
         public Integer referencedTableId;
         public int weight = 1;
+        public String metadata;
     }
 }

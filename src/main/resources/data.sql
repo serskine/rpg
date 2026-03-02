@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS roll_table_records (
     title VARCHAR(255) NOT NULL,
     referenced_table_id INT,
     weight INT NOT NULL DEFAULT 1,
+    metadata TEXT,
     FOREIGN KEY (roll_table_id) REFERENCES roll_tables(id) ON DELETE CASCADE,
     FOREIGN KEY (referenced_table_id) REFERENCES roll_tables(id) ON DELETE SET NULL
 );
@@ -216,3 +217,135 @@ INSERT INTO roll_table_records (roll_table_id, title, referenced_table_id, weigh
     (15, 'Artifact of Power', NULL, 1),
     (15, 'Forbidden Knowledge', NULL, 1),
     (15, 'Ultimate Prize', NULL, 1);
+
+-- ============================================================================
+-- ENUMERATION DATA MIGRATION TO ROLL TABLES
+-- All static enum data now stored in database with metadata
+-- ============================================================================
+
+-- Room Sizes Table (ID: 16)
+INSERT INTO roll_tables (title, equation) VALUES ('Room Sizes (Enum)', '1d3');
+INSERT INTO roll_table_records (roll_table_id, title, weight, metadata) VALUES 
+    (16, 'CRAMPED', 1, '{"numSquares":4}'),
+    (16, 'ROOMY', 1, '{"numSquares":16}'),
+    (16, 'VAST', 1, '{"numSquares":36}');
+
+-- Room Features Table (ID: 17) - 32 features with width/height
+INSERT INTO roll_tables (title, equation) VALUES ('Room Features (Enum)', '1d32');
+INSERT INTO roll_table_records (roll_table_id, title, weight, metadata) VALUES 
+    (17, 'SMALL_TABLE', 1, '{"width":2,"height":2}'),
+    (17, 'BIG_TABLE', 1, '{"width":3,"height":2}'),
+    (17, 'WORK_BENCH', 1, '{"width":3,"height":2}'),
+    (17, 'TOMB', 1, '{"width":3,"height":2}'),
+    (17, 'COFFIN', 1, '{"width":2,"height":1}'),
+    (17, 'THRONE', 1, '{"width":1,"height":1}'),
+    (17, 'ALTAR', 1, '{"width":2,"height":1}'),
+    (17, 'STATUE', 1, '{"width":1,"height":1}'),
+    (17, 'LARGE_STATUE', 1, '{"width":2,"height":2}'),
+    (17, 'HUGE_STATUE', 1, '{"width":3,"height":3}'),
+    (17, 'DESK', 1, '{"width":2,"height":1}'),
+    (17, 'SPELL_ALTAR', 1, '{"width":3,"height":2}'),
+    (17, 'BOOK_SHELF', 1, '{"width":3,"height":1}'),
+    (17, 'STORAGE_CABINET', 1, '{"width":3,"height":1}'),
+    (17, 'SMALL_SHELF', 1, '{"width":3,"height":1}'),
+    (17, 'BRAZIER', 1, '{"width":1,"height":1}'),
+    (17, 'TELEPORTATION_CIRCLE', 1, '{"width":2,"height":2}'),
+    (17, 'FOUNTAIN', 1, '{"width":2,"height":2}'),
+    (17, 'TRAP_DOOR', 1, '{"width":1,"height":1}'),
+    (17, 'DOOR', 1, '{"width":1,"height":1}'),
+    (17, 'PIT', 1, '{"width":2,"height":2}'),
+    (17, 'PILE_OF_RUBBLE', 1, '{"width":3,"height":2}'),
+    (17, 'PILE_OF_TREASURE', 1, '{"width":2,"height":2}'),
+    (17, 'CHEST', 1, '{"width":1,"height":1}'),
+    (17, 'TWIN_BED', 1, '{"width":2,"height":1}'),
+    (17, 'DOUBLE_BED', 1, '{"width":3,"height":2}'),
+    (17, 'STOVE', 1, '{"width":2,"height":1}'),
+    (17, 'ANVIL', 1, '{"width":1,"height":1}'),
+    (17, 'FORGE', 1, '{"width":3,"height":2}'),
+    (17, 'CAMPFIRE', 1, '{"width":1,"height":1}'),
+    (17, 'FIREPLACE', 1, '{"width":3,"height":1}'),
+    (17, 'BEDROLL', 1, '{"width":2,"height":1}');
+
+-- Alignments Table (ID: 18)
+INSERT INTO roll_tables (title, equation) VALUES ('Alignments (Enum)', '1d9');
+INSERT INTO roll_table_records (roll_table_id, title, weight) VALUES 
+    (18, 'LAWFUL_GOOD', 1),
+    (18, 'NEUTRAL_GOOD', 1),
+    (18, 'CHAOTIC_GOOD', 1),
+    (18, 'LAWFUL_NEUTRAL', 1),
+    (18, 'NEUTRAL', 1),
+    (18, 'CHAOTIC_NEUTRAL', 1),
+    (18, 'LAWFUL_EVIL', 1),
+    (18, 'NEUTRAL_EVIL', 1),
+    (18, 'CHAOTIC_EVIL', 1);
+
+-- Creature Sizes Table (ID: 19)
+INSERT INTO roll_tables (title, equation) VALUES ('Creature Sizes (Enum)', '1d6');
+INSERT INTO roll_table_records (roll_table_id, title, weight) VALUES 
+    (19, 'TINY', 1),
+    (19, 'SMALL', 1),
+    (19, 'MEDIUM', 1),
+    (19, 'LARGE', 1),
+    (19, 'HUGE', 1),
+    (19, 'GARGANTUAN', 1);
+
+-- Movement Types Table (ID: 20)
+INSERT INTO roll_tables (title, equation) VALUES ('Movement Types (Enum)', '1d6');
+INSERT INTO roll_table_records (roll_table_id, title, weight) VALUES 
+    (20, 'WALKING', 1),
+    (20, 'FLYING', 1),
+    (20, 'SWIMMING', 1),
+    (20, 'CLIMBING', 1),
+    (20, 'BURROWING', 1),
+    (20, 'TELEPORTING', 1);
+
+-- Rarity Table (ID: 21)
+INSERT INTO roll_tables (title, equation) VALUES ('Rarities (Enum)', '1d3');
+INSERT INTO roll_table_records (roll_table_id, title, weight) VALUES 
+    (21, 'COMMON', 3),
+    (21, 'UNCOMMON', 2),
+    (21, 'RARE', 1);
+
+-- Path Distances Table (ID: 22) - with minimum distance in feet
+INSERT INTO roll_tables (title, equation) VALUES ('Path Distances (Enum)', '1d4');
+INSERT INTO roll_table_records (roll_table_id, title, weight, metadata) VALUES 
+    (22, 'MELEE', 1, '{"minimum":15}'),
+    (22, 'SHORT', 1, '{"minimum":30}'),
+    (22, 'FAR', 1, '{"minimum":60}'),
+    (22, 'VERY_FAR', 1, '{"minimum":120}');
+
+-- Player Character Jobs - Common (ID: 23)
+INSERT INTO roll_tables (title, equation) VALUES ('PC Jobs - Common (Enum)', '1d7');
+INSERT INTO roll_table_records (roll_table_id, title, weight, metadata) VALUES 
+    (23, 'BARBARIAN', 1, '{"strength":15,"dexterity":13,"constitution":14,"intelligence":8,"wisdom":10,"charisma":12,"isCaster":false,"rarity":"COMMON"}'),
+    (23, 'BARD', 1, '{"strength":10,"dexterity":14,"constitution":12,"intelligence":13,"wisdom":8,"charisma":15,"isCaster":true,"rarity":"COMMON"}'),
+    (23, 'CLERIC', 1, '{"strength":13,"dexterity":8,"constitution":14,"intelligence":10,"wisdom":15,"charisma":12,"isCaster":true,"rarity":"COMMON"}'),
+    (23, 'FIGHTER', 1, '{"strength":15,"dexterity":14,"constitution":13,"intelligence":8,"wisdom":12,"charisma":10,"isCaster":false,"rarity":"COMMON"}'),
+    (23, 'PALADIN', 1, '{"strength":15,"dexterity":10,"constitution":13,"intelligence":8,"wisdom":12,"charisma":14,"isCaster":true,"rarity":"COMMON"}'),
+    (23, 'RANGER', 1, '{"strength":13,"dexterity":15,"constitution":12,"intelligence":10,"wisdom":14,"charisma":8,"isCaster":true,"rarity":"COMMON"}'),
+    (23, 'ROGUE', 1, '{"strength":8,"dexterity":15,"constitution":10,"intelligence":14,"wisdom":12,"charisma":13,"isCaster":false,"rarity":"COMMON"}');
+
+-- Player Character Jobs - Uncommon (ID: 24)
+INSERT INTO roll_tables (title, equation) VALUES ('PC Jobs - Uncommon (Enum)', '1d3');
+INSERT INTO roll_table_records (roll_table_id, title, weight, metadata) VALUES 
+    (24, 'DRUID', 1, '{"strength":12,"dexterity":13,"constitution":14,"intelligence":10,"wisdom":15,"charisma":8,"isCaster":true,"rarity":"UNCOMMON"}'),
+    (24, 'MONK', 1, '{"strength":13,"dexterity":14,"constitution":10,"intelligence":8,"wisdom":15,"charisma":12,"isCaster":false,"rarity":"UNCOMMON"}'),
+    (24, 'WARLOCK', 1, '{"strength":12,"dexterity":14,"constitution":13,"intelligence":10,"wisdom":8,"charisma":15,"isCaster":true,"rarity":"UNCOMMON"}');
+
+-- Player Character Jobs - Rare (ID: 25)
+INSERT INTO roll_tables (title, equation) VALUES ('PC Jobs - Rare (Enum)', '1d3');
+INSERT INTO roll_table_records (roll_table_id, title, weight, metadata) VALUES 
+    (25, 'ARTIFICER', 1, '{"strength":13,"dexterity":14,"constitution":12,"intelligence":15,"wisdom":8,"charisma":10,"isCaster":true,"rarity":"RARE"}'),
+    (25, 'SORCERER', 1, '{"strength":8,"dexterity":14,"constitution":12,"intelligence":13,"wisdom":10,"charisma":15,"isCaster":true,"rarity":"RARE"}'),
+    (25, 'WIZARD', 1, '{"strength":8,"dexterity":12,"constitution":10,"intelligence":15,"wisdom":14,"charisma":3,"isCaster":true,"rarity":"RARE"}');
+
+-- NPC Jobs/Classes (ID: 26)
+INSERT INTO roll_tables (title, equation) VALUES ('NPC Jobs (Enum)', '1d7');
+INSERT INTO roll_table_records (roll_table_id, title, weight, metadata) VALUES 
+    (26, 'SICKLY', 1, '{"strength":8,"dexterity":8,"constitution":8,"intelligence":8,"wisdom":8,"charisma":8,"isCaster":false,"rarity":"COMMON"}'),
+    (26, 'COMMONER', 1, '{"strength":10,"dexterity":10,"constitution":10,"intelligence":10,"wisdom":10,"charisma":10,"isCaster":false,"rarity":"COMMON"}'),
+    (26, 'MINION', 1, '{"strength":12,"dexterity":12,"constitution":12,"intelligence":12,"wisdom":12,"charisma":12,"isCaster":false,"rarity":"COMMON"}'),
+    (26, 'TOUGH', 1, '{"strength":14,"dexterity":14,"constitution":14,"intelligence":14,"wisdom":14,"charisma":14,"isCaster":false,"rarity":"COMMON"}'),
+    (26, 'ELITE', 1, '{"strength":16,"dexterity":16,"constitution":16,"intelligence":16,"wisdom":16,"charisma":16,"isCaster":false,"rarity":"UNCOMMON"}'),
+    (26, 'BOSS', 1, '{"strength":18,"dexterity":18,"constitution":18,"intelligence":18,"wisdom":18,"charisma":18,"isCaster":true,"rarity":"UNCOMMON"}'),
+    (26, 'DIETY', 1, '{"strength":20,"dexterity":20,"constitution":20,"intelligence":20,"wisdom":20,"charisma":20,"isCaster":true,"rarity":"RARE"}');

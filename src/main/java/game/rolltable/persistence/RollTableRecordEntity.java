@@ -26,6 +26,9 @@ public class RollTableRecordEntity {
     @Column(nullable = false)
     private int weight = 1;
 
+    @Column(columnDefinition = "TEXT")
+    private String metadata;
+
     public RollTableRecordEntity() {
     }
 
@@ -33,12 +36,21 @@ public class RollTableRecordEntity {
         this.title = title;
         this.referencedTableId = referencedTableId;
         this.weight = 1;
+        this.metadata = null;
     }
 
     public RollTableRecordEntity(final String title, final Integer referencedTableId, final int weight) {
         this.title = title;
         this.referencedTableId = referencedTableId;
         this.weight = weight;
+        this.metadata = null;
+    }
+
+    public RollTableRecordEntity(final String title, final Integer referencedTableId, final int weight, final String metadata) {
+        this.title = title;
+        this.referencedTableId = referencedTableId;
+        this.weight = weight;
+        this.metadata = metadata;
     }
 
     public int getId() {
@@ -79,5 +91,13 @@ public class RollTableRecordEntity {
 
     public void setWeight(final int weight) {
         this.weight = weight;
+    }
+
+    public String getMetadata() {
+        return metadata;
+    }
+
+    public void setMetadata(final String metadata) {
+        this.metadata = metadata;
     }
 }
