@@ -19,6 +19,14 @@ public record Arc(
         Objects.requireNonNull(end, "End point cannot be null");
     }
 
+    public double getDx() {
+        return (end.getX() - start.getX());
+    }
+
+    public double getDy() {
+        return (end.getY() - start.getY());
+    }
+
     @Override
     public ShapeType getType() {
         return ShapeType.ARC;
@@ -66,43 +74,49 @@ public record Arc(
      */
     public Point2D.Double getControlPoint() {
         // Axis from start: the direction is (end - start)
-        final double dx = end.x - start.x;
-        final double dy = end.y - start.y;
-        
-        // Perpendicular axis at end: perpendicular to (dx, dy)
-        // Perpendicular vectors to (dx, dy) are (-dy, dx) or (dy, -dx)
-        
-        // The control point is where these axes intersect
-        // Line from start in direction (dx, dy): start + t*(dx, dy)
-        // Line from end in perpendicular direction: end + s*(perpendicular)
-        
-        // Choose perpendicular direction based on counterClockwise flag
-        final double perpX = counterClockwise ? -dy : dy;
-        final double perpY = counterClockwise ? dx : -dx;
-        
-        // Find intersection of:
-        // P1: start + t*(dx, dy)
-        // P2: end + s*(perpX, perpY)
-        // 
-        // start.x + t*dx = end.x + s*perpX
-        // start.y + t*dy = end.y + s*perpY
-        
-        // Solving for t:
-        // t*dx - s*perpX = end.x - start.x
-        // t*dy - s*perpY = end.y - start.y
-        
-        // Using Cramer's rule:
-        final double det = dx * (-perpY) - dy * (-perpX);
-        if (Math.abs(det) < 1e-10) {
-            // Lines are parallel, return midpoint
-            return new Point2D.Double((start.x + end.x) / 2, (start.y + end.y) / 2);
+        final double dx = getDx();
+        final double dy = getDy();
+
+        if (dx==0D) {
+            throw new RuntimeException("Arc cannot have zero width: " + dx);
         }
-        
-        final double t = ((end.x - start.x) * (-perpY) - (end.y - start.y) * (-perpX)) / det;
-        
-        return new Point2D.Double(
-            start.x + t * dx,
-            start.y + t * dy
-        );
+
+        if (dy==0D) {
+            throw new RuntimeException("Arc cannot have zero height: " + dy);
+        }
+
+        if (dx < 0D) {
+            if (dy < 0D) {
+                // NW
+                if (counterClockwise) {
+                    return new Point2D.Double(start.getX(), end.getY()) ;
+                } else {
+                    return new Point2D.Double(end.getX(), start.getY());
+                }
+            } else {
+                // SW
+                if (counterClockwise) {
+                    return new Point2D.Double(end.getX(), start.getY());
+                } else {
+                    return new Point2D.Double(start.getX(), end.getY());
+                }
+            }
+        } else {
+            if (dy < 0D) {
+                // NE
+                if (counterClockwise) {
+                    return new Point2D.Double(end.getX(), start.getY());
+                } else {
+                    return new Point2D.Double(start.getX(), end.getY());
+                }
+            } else {
+                // SE
+                if (counterClockwise) {
+                    return new Point2D.Double(start.getX(), end.getY());
+                } else {
+                    return new Point2D.Double(end.getX(), start.getY());
+                }
+            }
+        }
     }
 }
