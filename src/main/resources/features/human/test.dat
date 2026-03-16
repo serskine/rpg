@@ -1,0 +1,118 @@
+{
+    colors: {
+        white: '#FFFFFF',
+        red: '#FF0000',
+        brown: '#A52A2A',
+        grey: '#808080',
+        black: '#000000',
+        blue: '#0000FF',
+        green: '#00FF00',
+        yellow: '#FFFF00',
+        cyan: '#00FFFF',
+        magenta: '#FF00FF',
+        orange: '#FFA500',
+        purple: '#800080'
+    },
+    bounds: {x: 0, y: 0, width: 40, height: 40},
+    shapes: [
+        // Polygon with STRAIGHT segments (closed, filled)
+        {
+            fillColor: grey,
+            lineColor: white,
+            path: [
+                {x: 1, y: 1},
+                {x: 6, y: 2},
+                {x: 6, y: 8},
+                {x: 1, y: 7}
+            ]
+        },
+        
+        // Polygon with LEFT curves (open)
+        {
+            fillColor: null,
+            lineColor: blue,
+            path: [
+                {x: 9, y: 1},
+                {type: LEFT, x: 15, y: 3},
+                {type: LEFT, x: 15, y: 8},
+                {type: LEFT, x: 9, y: 10}
+            ],
+            isOpen: true
+        },
+        
+        // Polygon with RIGHT curves (closed, filled)
+        {
+            fillColor: red,
+            lineColor: white,
+            path: [
+                {x: 18, y: 2},
+                {type: RIGHT, x: 23, y: 4},
+                {type: RIGHT, x: 23, y: 8},
+                {type: RIGHT, x: 18, y: 10}
+            ]
+        },
+        
+        // Polygon with mixed segment types
+        {
+            fillColor: yellow,
+            lineColor: black,
+            path: [
+                {x: 27, y: 2},
+                {type: STRAIGHT, x: 33, y: 3},
+                {type: LEFT, x: 35, y: 8},
+                {type: RIGHT, x: 33, y: 12},
+                {type: STRAIGHT, x: 27, y: 11}
+            ]
+        },
+        
+        // Polygon showcasing NONE type (gap in polygon)
+        {
+            fillColor: green,
+            lineColor: cyan,
+            path: [
+                {x: 1, y: 12},
+                {x: 4, y: 13},
+                {type: NONE, x: 5, y: 13},
+                {x: 6, y: 14}
+            ],
+            isOpen: true
+        },
+        
+        // Simple line
+        {
+            fillColor: null,
+            lineColor: orange,
+            path: [
+                {x: 9, y: 12},
+                {x: 14, y: 14}
+            ],
+            isOpen: true
+        },
+        
+        // Circle (filled)
+        {
+            fillColor: purple,
+            lineColor: white,
+            center: {x: 18, y: 13},
+            radius: 1.5
+        },
+        
+        // Circle (outline only)
+        {
+            fillColor: null,
+            lineColor: magenta,
+            center: {x: 24, y: 13},
+            radius: 1.5
+        },
+        
+        // Arc
+        {
+            fillColor: null,
+            lineColor: green,
+            center: {x: 30, y: 13},
+            radius: 1.5,
+            startAngle: 0,
+            endAngle: 180
+        }
+    ]
+}

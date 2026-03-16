@@ -3,6 +3,7 @@ package game.view;
 import game.common.Creature;
 import game.common.CreatureSize;
 import game.common.Path;
+import game.common.PathDistance;
 import game.common.Room;
 import game.common.RoomFeature;
 import game.util.Edge;
@@ -34,8 +35,6 @@ public class DungeonPanel extends JPanel {
     // Constants
     private static final double MIN_ZOOM = 1.0;
     private static final double MAX_ZOOM = 500.0;
-    
-    private final List<PathShape> pathShapes = new ArrayList<>();
     
     // Callback for room selection
     private RoomSelectionListener roomSelectionListener;
@@ -168,14 +167,12 @@ public class DungeonPanel extends JPanel {
 
     private void initializeLayout() {
         roomPositions.clear();
-        pathShapes.clear();
         if (dungeon == null) return;
 
         // Step 1: Force Directed Layout (Grid-Aware)
         runGridForceLayout();
         
-        // Step 2: Generate Orthogonal Paths
-        generateOrthogonalPaths();
+        // Step 2: Graph rendering now happens directly in paintComponent
     }
 
     private void runGridForceLayout() {
@@ -298,194 +295,6 @@ public class DungeonPanel extends JPanel {
         }
     }
 
-    private void generateOrthogonalPaths() {
-        pathShapes.clear();
-        Set<Edge<Room, Path>> processedEdges = new HashSet<>();
-
-        for (Edge<Room, Path> edge : dungeon.getAllEdges()) {
-             // Check processed
-            boolean alreadyProcessed = false;
-            for (Edge<Room, Path> existing : processedEdges) {
-                if ((existing.from == edge.from && existing.to == edge.to) || 
-                    (existing.from == edge.to && existing.to == edge.from)) {
-                    alreadyProcessed = true;
-                    break;
-                }
-            }
-            if (alreadyProcessed) continue;
-            processedEdges.add(edge);
-
-            generateSinglePath(edge);
-        }
-        
-        // Detect overlaps for Z-ordering (simplified: just mark all intersections)
-        // For a true "tunnel" effect we'd need to split paths, but dashed rendering 
-        // for the lower path works as a visual approximation.
-        for (int i=0; i<pathShapes.size(); i++) {
-            for (int j=i+1; j<pathShapes.size(); j++) {
-                PathShape ps1 = pathShapes.get(i);
-                PathShape ps2 = pathShapes.get(j);
-                if (ps1.area.intersects(ps2.area.getBounds2D())) { // Quick check
-                    Area a1 = new Area(ps1.area);
-                    a1.intersect(ps2.area);
-                    if (!a1.isEmpty()) {
-                        ps2.isLower = true; // Mark one as lower
-                    }
-                }
-            }
-        }
-    }
-    
-    private void generateSinglePath(Edge<Room, Path> edge) {
-        Room r1 = edge.from;
-        Room r2 = edge.to;
-        Point p1 = roomPositions.get(r1);
-        Point p2 = roomPositions.get(r2);
-        
-        // Path length based on enum ordinal + base length
-        int targetLen = edge.path.distance.ordinal() + 3;
-        int pathWidth = (edge.path.distance.ordinal() >= 2) ? 2 : 1;
-        
-        // Find connection points on room edges
-        Rectangle rect1 = getRoomRect(r1, p1);
-        Rectangle rect2 = getRoomRect(r2, p2);
-        
-        // Simple A* / BFS to find path
-        // Since we want specific length, standard A* finds shortest.
-        // We will find shortest, then extend if needed.
-        
-        List<Point> pathTiles = findPath(rect1, rect2, targetLen);
-        
-        // Build Area from tiles
-        Area pathArea = new Area();
-        for (Point t : pathTiles) {
-            pathArea.add(new Area(new Rectangle(t.x, t.y, 1, 1)));
-            if (pathWidth == 2) {
-                // Add adjacent tile for width
-                // Primitive logic: expand right/down depending on flow?
-                // For simplicity, expand towards +X and +Y to simulate thickness
-                // (Though a true thickening algorithm would depend on path direction)
-                 Area thicker = new Area(pathArea);
-                 AffineTransform tx = AffineTransform.getTranslateInstance(1, 0);
-                 thicker.add(pathArea.createTransformedArea(tx));
-                 tx = AffineTransform.getTranslateInstance(0, 1);
-                 thicker.add(pathArea.createTransformedArea(tx));
-                 tx = AffineTransform.getTranslateInstance(1, 1);
-                 thicker.add(pathArea.createTransformedArea(tx));
-                 pathArea = thicker;
-            }
-        }
-
-        pathShapes.add(new PathShape(pathArea, edge, pathWidth, pathTiles));
-    }
-    
-    private List<Point> findPath(Rectangle r1, Rectangle r2, int targetLength) {
-        Point start = new Point((int)r1.getCenterX(), (int)r1.getCenterY());
-        Point end = new Point((int)r2.getCenterX(), (int)r2.getCenterY());
-        
-        // Find shortest Manhattan path (L-shape)
-        List<Point> path = new ArrayList<>();
-        Point current = new Point(start);
-        
-        // Basic L-shape: horizontal then vertical
-        while (current.x != end.x) {
-            path.add(new Point(current));
-            if (current.x < end.x) current.x++; else current.x--;
-        }
-        while (current.y != end.y) {
-            path.add(new Point(current));
-            if (current.y < end.y) current.y++; else current.y--;
-        }
-        path.add(end);
-        
-        // Get tiles outside rooms
-        List<Point> validTiles = new ArrayList<>();
-        for (Point p : path) {
-            if (!r1.contains(p) && !r2.contains(p)) {
-                validTiles.add(p);
-            }
-        }
-        
-        int shortestLen = validTiles.size();
-        
-        // If path is shorter than target, add wiggles
-        if (shortestLen < targetLength) {
-            validTiles = addWiggles(validTiles, start, end, r1, r2, targetLength);
-        }
-        
-        return validTiles;
-    }
-    
-    private List<Point> addWiggles(List<Point> path, Point start, Point end, Rectangle r1, Rectangle r2, int targetLength) {
-        // Determine primary direction (horizontal or vertical)
-        boolean horizontalFirst = Math.abs(end.x - start.x) >= Math.abs(end.y - start.y);
-        
-        List<Point> result = new ArrayList<>(path);
-        int needed = targetLength - result.size();
-        
-        // Add zigzags to extend path
-        // Each wiggle adds 2 tiles: go perpendicular, then back
-        int wiggleCount = needed / 2;
-        int remainder = needed % 2;
-        
-        // Find a good insertion point (middle of path)
-        int insertPos = result.size() / 2;
-        
-        for (int w = 0; w < wiggleCount; w++) {
-            // Alternate wiggle direction
-            boolean wiggleHorizontal = (w % 2 == 0) != horizontalFirst;
-            
-            // Find a position to insert wiggle
-            if (insertPos > 0 && insertPos < result.size()) {
-                Point prev = result.get(insertPos - 1);
-                Point curr = result.get(insertPos);
-                
-                int wx = curr.x;
-                int wy = curr.y;
-                
-                if (wiggleHorizontal) {
-                    // Go perpendicular (horizontal wiggle)
-                    wy += 1; // Go down
-                    // Check if valid (not inside room)
-                    Point wigglePoint = new Point(wx, wy);
-                    if (!r1.contains(wigglePoint) && !r2.contains(wigglePoint)) {
-                        result.add(insertPos, wigglePoint);
-                        insertPos++;
-                        // Add return point
-                        result.add(insertPos, new Point(curr.x, curr.y));
-                        insertPos++;
-                    }
-                } else {
-                    // Vertical wiggle
-                    wx += 1; // Go right
-                    Point wigglePoint = new Point(wx, wy);
-                    if (!r1.contains(wigglePoint) && !r2.contains(wigglePoint)) {
-                        result.add(insertPos, wigglePoint);
-                        insertPos++;
-                        result.add(insertPos, new Point(curr.x, curr.y));
-                        insertPos++;
-                    }
-                }
-            }
-        }
-        
-        // Handle odd remainder by extending in a valid direction at end
-        if (remainder > 0 && result.size() < targetLength) {
-            Point last = result.get(result.size() - 1);
-            Point extend = new Point(last.x + 1, last.y);
-            if (!r1.contains(extend) && !r2.contains(extend)) {
-                result.add(extend);
-            } else {
-                extend = new Point(last.x, last.y + 1);
-                if (!r1.contains(extend) && !r2.contains(extend)) {
-                    result.add(extend);
-                }
-            }
-        }
-        
-        return result;
-    }
-
     private Rectangle getRoomRect(Room room, Point center) {
         int size = 0;
         switch (room.size) {
@@ -520,14 +329,8 @@ public class DungeonPanel extends JPanel {
         g2d.translate(offsetX, offsetY);
         g2d.scale(scale, scale);
         
-        // Draw Paths (Lower)
-        for (PathShape ps : pathShapes) {
-            if (ps.isLower) drawPath(g2d, ps);
-        }
-        // Draw Paths (Upper)
-        for (PathShape ps : pathShapes) {
-            if (!ps.isLower) drawPath(g2d, ps);
-        }
+        // Draw Directed Graph Edges (straight lines)
+        drawDirectedGraphEdges(g2d);
         
         // Draw Rooms
         for (Map.Entry<Room, Point> entry : roomPositions.entrySet()) {
@@ -543,29 +346,10 @@ public class DungeonPanel extends JPanel {
             }
         }
         
-        // Draw Details
-        drawPathDetails(g2d);
+        // Draw Doors on Room Edges
+        drawPathDetailsOnRoomEdges(g2d);
         
         g2d.setTransform(saveXform);
-    }
-    
-    private void drawPath(Graphics2D g2d, PathShape ps) {
-        if (ps.tiles.isEmpty()) return;
-        
-        g2d.setColor(Color.DARK_GRAY);
-        float strokeW = (float)(2.0 / scale);
-        g2d.setStroke(new BasicStroke(strokeW, BasicStroke.CAP_SQUARE, BasicStroke.JOIN_MITER, 10.0f));
-        
-        Point prev = ps.tiles.get(0);
-        for (int i = 1; i < ps.tiles.size(); i++) {
-            Point curr = ps.tiles.get(i);
-            double x1 = prev.x + 0.5;
-            double y1 = prev.y + 0.5;
-            double x2 = curr.x + 0.5;
-            double y2 = curr.y + 0.5;
-            g2d.draw(new Line2D.Double(x1, y1, x2, y2));
-            prev = curr;
-        }
     }
     
      private void drawRoom(Graphics2D g2d, Room room, Point center) {
@@ -755,333 +539,212 @@ public class DungeonPanel extends JPanel {
         g2d.setClip(oldClip);
     }
     
-     private void drawPathDetails(Graphics2D g2d) {
-          for (int pathIdx = 0; pathIdx < pathShapes.size(); pathIdx++) {
-              PathShape ps = pathShapes.get(pathIdx);
-              if (ps.tiles.isEmpty()) continue;
-              
-              // Draw distance label (at midpoint)
-              if (!ps.tiles.isEmpty()) {
-                  Point mid = ps.tiles.get(ps.tiles.size()/2);
-                  AffineTransform t = g2d.getTransform();
-                  g2d.translate(mid.x + 0.5, mid.y + 0.5);
-                  g2d.scale(1/scale, 1/scale);
-                  g2d.setColor(Color.BLACK);
-                  g2d.setFont(new Font("SansSerif", Font.PLAIN, 14));
-                   String label = ps.edge.path.distance.name();
-                  g2d.drawString(label, 0, 0);
-                  g2d.setTransform(t);
-              }
-
-              // Draw doors/wall breaks at both ends (where path meets room edges)
-              if (ps.tiles.isEmpty()) continue;
-              
-              // Get room rectangles
-              Room room1 = ps.edge.from;
-              Room room2 = ps.edge.to;
-              Point p1 = roomPositions.get(room1);
-              Point p2 = roomPositions.get(room2);
-              Rectangle rect1 = getRoomRect(room1, p1);
-              Rectangle rect2 = getRoomRect(room2, p2);
-              
-              // Find door positions at room edges
-              Point doorTile1 = findDoorTileAtRoom(ps.tiles, rect1);
-              Point doorTile2 = findDoorTileAtRoom(ps.tiles, rect2);
-              
-              // Determine if this path should have doors or wall breaks
-              boolean hasDoor = pathIdx % 2 == 0;
-              
-              // Draw entrance at first room
-              if (doorTile1 != null) {
-                  boolean vertical = isPathVertical(ps.tiles, doorTile1);
-                  if (hasDoor) {
-                      drawDoorAtEdge(g2d, doorTile1, vertical, rect1, ps.edge.path.stealthDc, ps.edge.path.lockDc);
-                  } else {
-                      drawWallBreakAtEdge(g2d, doorTile1, vertical, rect1);
-                  }
-              }
-              
-              // Draw entrance at second room
-              if (doorTile2 != null) {
-                  boolean vertical = isPathVertical(ps.tiles, doorTile2);
-                  if (hasDoor) {
-                      drawDoorAtEdge(g2d, doorTile2, vertical, rect2, ps.edge.path.stealthDc, ps.edge.path.lockDc);
-                  } else {
-                      drawWallBreakAtEdge(g2d, doorTile2, vertical, rect2);
-                  }
-              }
-          }
-     }
     
-    private Point findDoorTileAtRoom(List<Point> tiles, Rectangle roomRect) {
-        for (Point tile : tiles) {
-            if (roomRect.contains(tile.x, tile.y) || 
-                roomRect.contains(tile.x + 0.5, tile.y + 0.5)) {
-                return tile;
-            }
+    private void drawDirectedGraphEdges(Graphics2D g2d) {
+        for (final Edge<Room, Path> edge : dungeon.getAllEdges()) {
+            final Room from = edge.from;
+            final Room to = edge.to;
+            final Point fromCenter = roomPositions.get(from);
+            final Point toCenter = roomPositions.get(to);
+            
+            // Calculate direction angle from source to destination
+            double dx = toCenter.x - fromCenter.x;
+            double dy = toCenter.y - fromCenter.y;
+            double angle = Math.atan2(dy, dx);
+            
+            // Get source and destination room rectangles
+            Rectangle fromRect = getRoomRect(from, fromCenter);
+            Rectangle toRect = getRoomRect(to, toCenter);
+            
+            // Get perimeter intersection points
+            Point2D.Double fromEdge = getRoomPerimeterPoint(fromRect, angle);
+            Point2D.Double toEdge = getRoomPerimeterPoint(toRect, angle + Math.PI);
+            
+            // Draw line
+            g2d.setColor(Color.DARK_GRAY);
+            float strokeW = (float)(2.0 / scale);
+            g2d.setStroke(new BasicStroke(strokeW));
+            g2d.draw(new Line2D.Double(fromEdge.x, fromEdge.y, toEdge.x, toEdge.y));
+            
+            // Draw distance label at midpoint
+            double midX = (fromEdge.x + toEdge.x) / 2.0;
+            double midY = (fromEdge.y + toEdge.y) / 2.0;
+            drawPathDistanceLabel(g2d, edge.path.distance, midX, midY);
         }
-        return tiles.isEmpty() ? null : tiles.get(0);
     }
     
-    private boolean isPathVertical(List<Point> tiles, Point doorTile) {
-        int idx = tiles.indexOf(doorTile);
-        if (idx < 0) {
-            for (int i = 0; i < tiles.size(); i++) {
-                if (tiles.get(i).x == doorTile.x && tiles.get(i).y == doorTile.y) {
-                    idx = i;
-                    break;
-                }
-            }
-        }
-        if (idx < 0 || idx >= tiles.size() - 1) {
-            idx = tiles.size() - 1;
-        }
-        Point next = tiles.get(idx + 1);
-        return next.x == doorTile.x;
+    private void drawPathDistanceLabel(Graphics2D g2d, PathDistance distance, double midX, double midY) {
+        AffineTransform t = g2d.getTransform();
+        g2d.translate(midX, midY);
+        g2d.scale(1/scale, 1/scale);
+        g2d.setColor(Color.BLACK);
+        g2d.setFont(new Font("SansSerif", Font.PLAIN, 14));
+        String label = distance.name();
+        FontMetrics fm = g2d.getFontMetrics();
+        g2d.drawString(label, -fm.stringWidth(label)/2, fm.getAscent()/2);
+        g2d.setTransform(t);
     }
     
-    private void drawDoorAtEdge(Graphics2D g2d, Point doorTile, boolean vertical, Rectangle roomRect, 
-            Optional<Integer> stealthDc, Optional<Integer> lockDc) {
-        // Determine which edge of the room the door is on
-        double doorX, doorY;
+    private Point2D.Double getRoomPerimeterPoint(Rectangle rect, double angle) {
+        final double centerX = rect.getCenterX();
+        final double centerY = rect.getCenterY();
+        final double halfWidth = rect.width / 2.0;
+        final double halfHeight = rect.height / 2.0;
         
-        // Find the edge and position door at the actual connection point
-        if (doorTile.x < roomRect.x) {
-            // Door on left edge - position at the intersection with the path tile
-            doorX = roomRect.x;
-            doorY = roomRect.y + ((doorTile.y - Math.floor(doorTile.y)) * roomRect.height);
-        } else if (doorTile.x >= roomRect.x + roomRect.width) {
-            // Door on right edge
-            doorX = roomRect.x + roomRect.width;
-            doorY = roomRect.y + ((doorTile.y - Math.floor(doorTile.y)) * roomRect.height);
-        } else if (doorTile.y < roomRect.y) {
-            // Door on top edge
-            doorX = roomRect.x + ((doorTile.x - Math.floor(doorTile.x)) * roomRect.width);
-            doorY = roomRect.y;
+        // Normalize angle to [0, 2π)
+        while (angle < 0) angle += 2 * Math.PI;
+        while (angle >= 2 * Math.PI) angle -= 2 * Math.PI;
+        
+        // Find intersection with rectangle edge using parametric ray equation
+        // Find minimum t where ray intersects rectangle boundary
+        double t = Double.POSITIVE_INFINITY;
+        double cosAngle = Math.cos(angle);
+        double sinAngle = Math.sin(angle);
+        
+        // Check right edge (x = centerX + halfWidth)
+        if (cosAngle > 0) {
+            t = Math.min(t, halfWidth / cosAngle);
+        } else if (cosAngle < 0) {
+            t = Math.min(t, -halfWidth / cosAngle);
+        }
+        
+        // Check top/bottom edges (y = centerY ± halfHeight)
+        if (sinAngle > 0) {
+            t = Math.min(t, halfHeight / sinAngle);
+        } else if (sinAngle < 0) {
+            t = Math.min(t, -halfHeight / sinAngle);
+        }
+        
+        return new Point2D.Double(
+            centerX + cosAngle * t,
+            centerY + sinAngle * t
+        );
+    }
+    
+    private double calculateAngleToRoom(Point from, Point to) {
+        double dx = to.x - from.x;
+        double dy = to.y - from.y;
+        return Math.atan2(dy, dx);
+    }
+    
+    private boolean isOnVerticalWall(double angle) {
+        // Normalize angle to [0, π) since [π, 2π) is just opposite direction
+        while (angle < 0) angle += 2 * Math.PI;
+        angle = angle % Math.PI;
+        
+        // Vertical walls: angles near 0 (right edge) or π (left edge)
+        // Horizontal walls: angles near π/2 (bottom) or 3π/2 (top)
+        // So angles near 0 or π indicate vertical walls
+        return angle < Math.PI / 4 || angle > 3 * Math.PI / 4;
+    }
+    
+    private void drawPathDetailsOnRoomEdges(Graphics2D g2d) {
+        for (final Room room : dungeon.getAllVertex()) {
+            final Point center = roomPositions.get(room);
+            final Rectangle rect = getRoomRect(room, center);
+            final Map<Room, Path> children = dungeon.getChildrenOf(room);
+            
+            if (children.isEmpty()) continue;
+            
+            // Create list of edges from this room
+            final List<Edge<Room, Path>> outgoingEdges = new ArrayList<>();
+            for (final Map.Entry<Room, Path> entry : children.entrySet()) {
+                outgoingEdges.add(new Edge<>(room, entry.getKey(), entry.getValue()));
+            }
+            
+            // Sort edges by angle for consistent, distributed placement
+            outgoingEdges.sort((e1, e2) -> {
+                double angle1 = calculateAngleToRoom(center, roomPositions.get(e1.to));
+                double angle2 = calculateAngleToRoom(center, roomPositions.get(e2.to));
+                return Double.compare(angle1, angle2);
+            });
+            
+            // Draw doors at source room edge
+            for (final Edge<Room, Path> edge : outgoingEdges) {
+                final Room dest = edge.to;
+                final Point destCenter = roomPositions.get(dest);
+                double angle = calculateAngleToRoom(center, destCenter);
+                
+                // Get door position on room perimeter
+                Point2D.Double doorPos = getRoomPerimeterPoint(rect, angle);
+                
+                // Snap to nearest tile (0.5-unit alignment)
+                doorPos.x = Math.round(doorPos.x * 2) / 2.0;
+                doorPos.y = Math.round(doorPos.y * 2) / 2.0;
+                
+                // Determine which wall we're on
+                boolean isVerticalWall = isOnVerticalWall(angle);
+                
+                // Draw door on room edge
+                drawDoorOnRoomEdge(g2d, doorPos, isVerticalWall, edge.path.lockDc, edge.path.stealthDc);
+            }
+        }
+    }
+    
+    private void drawDoorOnRoomEdge(Graphics2D g2d, Point2D.Double position, boolean isVerticalWall,
+            Optional<Integer> lockDc, Optional<Integer> stealthDc) {
+        final AffineTransform t = g2d.getTransform();
+        g2d.translate(position.x, position.y);
+        
+        // Draw door symbol PARALLEL to the wall
+        g2d.setColor(new Color(101, 67, 33)); // Brown
+        g2d.setStroke(new BasicStroke((float)(3.0/scale)));
+        
+        if (isVerticalWall) {
+            // Vertical wall → draw vertical line (parallel to wall)
+            g2d.draw(new Line2D.Double(0, -0.5, 0, 0.5));
         } else {
-            // Door on bottom edge
-            doorX = roomRect.x + ((doorTile.x - Math.floor(doorTile.x)) * roomRect.width);
-            doorY = roomRect.y + roomRect.height;
+            // Horizontal wall → draw horizontal line (parallel to wall)
+            g2d.draw(new Line2D.Double(-0.5, 0, 0.5, 0));
         }
         
-        drawDoorSymbolAt(g2d, doorX, doorY, vertical, stealthDc, lockDc);
-    }
-    
-    private void drawDoorSymbolAt(Graphics2D g2d, double doorX, double doorY, boolean vertical, 
-            Optional<Integer> stealthDc, Optional<Integer> lockDc) {
-         AffineTransform t = g2d.getTransform();
-         g2d.translate(doorX, doorY);
-         
-         // Determine door orientation based on which edge
-         // If door is on left/right edge, draw horizontal line; top/bottom, draw vertical
-         boolean isHorizontalEdge = (doorX == Math.floor(doorX)) || (doorX == Math.ceil(doorX));
-         boolean drawHorizontal = !isHorizontalEdge;
-         
-         g2d.setColor(new Color(101, 67, 33)); // Brown
-         float strokeW = (float)(3.0/scale);
-         g2d.setStroke(new BasicStroke(strokeW));
-         
-         // Draw line across doorway (perpendicular to hallway)
-         if (drawHorizontal) {
-             // Horizontal line across the opening
-             g2d.draw(new Line2D.Double(-0.5, 0, 0.5, 0));
-         } else {
-             // Vertical line across the opening
-             g2d.draw(new Line2D.Double(0, -0.5, 0, 0.5));
-         }
-         
-         // Draw box in center
-         double boxSize = 0.3;
-         double bx = -boxSize/2;
-         double by = -boxSize/2;
-         Rectangle2D.Double box = new Rectangle2D.Double(bx, by, boxSize, boxSize);
-         
-         boolean isSecret = stealthDc.isPresent();
-         g2d.setColor(isSecret ? Color.MAGENTA : Color.ORANGE);
-         g2d.fill(box);
-         g2d.setColor(Color.BLACK);
-         g2d.setStroke(new BasicStroke((float)(1.0/scale)));
-         g2d.draw(box);
-         
-         // Draw Text (Question mark)
-         if (isSecret) {
-             g2d.setColor(Color.BLACK);
-             Font font = new Font("Monospaced", Font.BOLD, (int)(0.25 * scale)); 
-             g2d.setFont(font);
-             FontMetrics fm = g2d.getFontMetrics();
-             
-             AffineTransform t2 = g2d.getTransform();
-             g2d.scale(1/scale, 1/scale);
-             g2d.drawString("?", (float)(0.5 * scale - fm.stringWidth("?")/2), (float)(0.5 * scale + fm.getAscent()/3));
-             g2d.setTransform(t2);
-         }
-         
-         // Draw DC Text
-         g2d.setColor(Color.RED);
-         AffineTransform t3 = g2d.getTransform();
-         g2d.scale(1/scale, 1/scale);
-         g2d.setFont(new Font("SansSerif", Font.BOLD, 16));
-         FontMetrics fm = g2d.getFontMetrics();
-         
-         if (stealthDc.isPresent()) {
-             String label1 = "S " + stealthDc.get();
-             float textY = (float)(-boxSize*scale/2 - 2);
-             g2d.drawString(label1, (float)(-fm.stringWidth(label1)/2), textY);
-             
-             if (lockDc.isPresent()) {
-                 String label2 = "DC " + lockDc.get();
-                 g2d.drawString(label2, (float)(-fm.stringWidth(label2)/2), textY - fm.getHeight());
-             }
-         } else if (lockDc.isPresent()) {
-             String label = "DC " + lockDc.get();
-             float textY = (float)(-boxSize*scale/2 - 2);
-             g2d.drawString(label, (float)(-fm.stringWidth(label)/2), textY);
-         }
-         
-          g2d.setTransform(t3);
-          g2d.setTransform(t);
-     }
-     
-     private void drawWallBreakAtEdge(Graphics2D g2d, Point doorTile, boolean vertical, Rectangle roomRect) {
-         // Determine which edge of the room the wall break is on
-         double breakX, breakY;
-         
-         // Find the edge and position break at the actual connection point
-         if (doorTile.x < roomRect.x) {
-             // Break on left edge
-             breakX = roomRect.x;
-             breakY = roomRect.y + ((doorTile.y - Math.floor(doorTile.y)) * roomRect.height);
-         } else if (doorTile.x >= roomRect.x + roomRect.width) {
-             // Break on right edge
-             breakX = roomRect.x + roomRect.width;
-             breakY = roomRect.y + ((doorTile.y - Math.floor(doorTile.y)) * roomRect.height);
-         } else if (doorTile.y < roomRect.y) {
-             // Break on top edge
-             breakX = roomRect.x + ((doorTile.x - Math.floor(doorTile.x)) * roomRect.width);
-             breakY = roomRect.y;
-         } else {
-             // Break on bottom edge
-             breakX = roomRect.x + ((doorTile.x - Math.floor(doorTile.x)) * roomRect.width);
-             breakY = roomRect.y + roomRect.height;
-         }
-         
-         drawWallBreakSymbolAt(g2d, breakX, breakY, vertical);
-     }
-     
-     private void drawWallBreakSymbolAt(Graphics2D g2d, double breakX, double breakY, boolean vertical) {
-         AffineTransform t = g2d.getTransform();
-         g2d.translate(breakX, breakY);
-         
-         // Draw wall line with break segments on either side of opening
-         g2d.setColor(new Color(100, 80, 60)); // Wall color
-         float strokeW = (float)(3.0/scale);
-         g2d.setStroke(new BasicStroke(strokeW));
-         
-         // Draw partial wall lines with gap in the center (opening)
-         double segmentLength = 0.35;
-         if (vertical) {
-             // Vertical wall with horizontal opening
-             g2d.draw(new Line2D.Double(0, -0.5, 0, -segmentLength));
-             g2d.draw(new Line2D.Double(0, segmentLength, 0, 0.5));
-         } else {
-             // Horizontal wall with vertical opening
-             g2d.draw(new Line2D.Double(-0.5, 0, -segmentLength, 0));
-             g2d.draw(new Line2D.Double(segmentLength, 0, 0.5, 0));
-         }
-         
-         g2d.setTransform(t);
-     }
-     
-     private void drawDoorSymbol(Graphics2D g2d, Point tile, boolean vertical, boolean isSecret, int mainVal, Optional<Integer> secondaryVal) {
-         AffineTransform t = g2d.getTransform();
-         g2d.translate(tile.x, tile.y);
-         
-         // 1 unit = 1.0 here (viewport scale handled by outer transform)
-         
-         g2d.setColor(new Color(101, 67, 33)); // Brown
-         float strokeW = (float)(3.0/scale);
-         g2d.setStroke(new BasicStroke(strokeW));
-         
-         // Draw line across hallway
-         if (vertical) {
-             // Hallway is vertical (North-South), line is Horizontal (East-West)
-             // Tile is (0,0) to (1,1) in local coords
-             g2d.draw(new Line2D.Double(0, 0.5, 1, 0.5));
-         } else {
-             // Hallway is horizontal, line is Vertical
-             g2d.draw(new Line2D.Double(0.5, 0, 0.5, 1));
-         }
-         
-         // Draw Box in center
-         double boxSize = 0.3;
-         double bx = 0.5 - boxSize/2;
-         double by = 0.5 - boxSize/2;
-         Rectangle2D.Double box = new Rectangle2D.Double(bx, by, boxSize, boxSize);
-         
-         g2d.setColor(isSecret ? Color.MAGENTA : Color.ORANGE);
-         g2d.fill(box);
-         g2d.setColor(Color.BLACK);
-         g2d.setStroke(new BasicStroke((float)(1.0/scale)));
-         g2d.draw(box);
-         
-         // Draw Text (Question mark or nothing)
-         if (isSecret) {
-             g2d.setColor(Color.BLACK);
-             // We need to scale text to fit in box (0.3 units)
-             // 0.3 units * scale = pixels
-             // Font size ~ pixels
-             Font font = new Font("Monospaced", Font.BOLD, (int)(0.25 * scale)); 
-             g2d.setFont(font);
-             // Center '?'
-             FontMetrics fm = g2d.getFontMetrics();
-             String text = "?";
-             
-             // Since we are in 1.0 = 1 unit space, we can't use fm directly for positioning relative to unit
-             // Actually, we are scaled. 
-             // Let's reset scale for text drawing to be cleaner
-             AffineTransform t2 = g2d.getTransform();
-             g2d.scale(1/scale, 1/scale);
-             g2d.drawString("?", (float)(0.5 * scale - fm.stringWidth("?")/2), (float)(0.5 * scale + fm.getAscent()/3));
-             g2d.setTransform(t2);
-         }
-         
-         // Draw DC Text above box
-         // "Above" depends on orientation? Or just physically above (-Y)
-         // Let's put it physically above
-         g2d.setColor(Color.RED);
-         AffineTransform t3 = g2d.getTransform();
-         g2d.scale(1/scale, 1/scale);
-         g2d.setFont(new Font("SansSerif", Font.BOLD, 16));
-         FontMetrics fm = g2d.getFontMetrics();
-         
-         String label1 = (isSecret ? "S " : "DC ") + mainVal;
-         float textY = (float)(0.5*scale - boxSize*scale/2 - 2);
-         g2d.drawString(label1, (float)(0.5*scale - fm.stringWidth(label1)/2), textY);
-         
-         if (secondaryVal.isPresent()) {
-             String label2 = "DC " + secondaryVal.get();
-             // Draw above the first label
-             g2d.drawString(label2, (float)(0.5*scale - fm.stringWidth(label2)/2), textY - fm.getHeight());
-         }
-         
-         g2d.setTransform(t3);
-         
-         g2d.setTransform(t);
-    }
-
-    private static class PathShape {
-        Area area;
-        Edge<Room, Path> edge;
-        int width;
-        List<Point> tiles; // Ordered list of tiles
-        boolean isLower = false;
-
-        PathShape(Area area, Edge<Room, Path> edge, int width, List<Point> tiles) {
-            this.area = area;
-            this.edge = edge;
-            this.width = width;
-            this.tiles = tiles;
+        // Draw box in center
+        double boxSize = 0.3;
+        Rectangle2D.Double box = new Rectangle2D.Double(-boxSize/2, -boxSize/2, boxSize, boxSize);
+        boolean isSecret = stealthDc.isPresent();
+        g2d.setColor(isSecret ? Color.MAGENTA : Color.ORANGE);
+        g2d.fill(box);
+        g2d.setColor(Color.BLACK);
+        g2d.setStroke(new BasicStroke((float)(1.0/scale)));
+        g2d.draw(box);
+        
+        // Draw question mark if secret
+        if (isSecret) {
+            g2d.setColor(Color.BLACK);
+            Font font = new Font("Monospaced", Font.BOLD, (int)(0.25 * scale)); 
+            g2d.setFont(font);
+            FontMetrics fm = g2d.getFontMetrics();
+            
+            AffineTransform t2 = g2d.getTransform();
+            g2d.scale(1/scale, 1/scale);
+            g2d.drawString("?", (float)(0.5 * scale - fm.stringWidth("?")/2), (float)(0.5 * scale + fm.getAscent()/3));
+            g2d.setTransform(t2);
         }
+        
+        // Draw DC labels
+        g2d.setColor(Color.RED);
+        AffineTransform t3 = g2d.getTransform();
+        g2d.scale(1/scale, 1/scale);
+        g2d.setFont(new Font("SansSerif", Font.BOLD, 16));
+        FontMetrics fm = g2d.getFontMetrics();
+        
+        if (stealthDc.isPresent()) {
+            String label1 = "S " + stealthDc.get();
+            float textY = (float)(-boxSize*scale/2 - 2);
+            g2d.drawString(label1, (float)(-fm.stringWidth(label1)/2), textY);
+            
+            if (lockDc.isPresent()) {
+                String label2 = "DC " + lockDc.get();
+                g2d.drawString(label2, (float)(-fm.stringWidth(label2)/2), textY - fm.getHeight());
+            }
+        } else if (lockDc.isPresent()) {
+            String label = "DC " + lockDc.get();
+            float textY = (float)(-boxSize*scale/2 - 2);
+            g2d.drawString(label, (float)(-fm.stringWidth(label)/2), textY);
+        }
+        
+        g2d.setTransform(t3);
+        g2d.setTransform(t);
     }
     
     public interface RoomSelectionListener {

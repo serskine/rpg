@@ -2,6 +2,7 @@ package game.view;
 
 import game.builder.WorldBuilder;
 import game.common.World;
+import game.sprite.view.SpriteEditorPanel;
 
 import javax.swing.*;
 import java.awt.*;
@@ -14,16 +15,23 @@ public class WorldView extends JFrame {
     private final ControlsPanel controlsPanel;
     private final WorldBuilder worldBuilder;
     private final JTabbedPane tabbedPane;
+    private SpriteEditorPanel spriteEditorPanel;
 
     public WorldView(int defaultPartySize, int defaultPartyLevel) {
+        this(defaultPartySize, defaultPartyLevel, null);
+    }
+
+    public WorldView(int defaultPartySize, int defaultPartyLevel, String workingDirectory) {
         super("Dungeon World Viewer");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setSize(1200, 800);
         setLocationRelativeTo(null);
+        setExtendedState(JFrame.MAXIMIZED_BOTH);  // Start window maximized
 
         worldBuilder = new WorldBuilder();
 
         // Initialize Panels
+        spriteEditorPanel = new SpriteEditorPanel(workingDirectory);
         dungeonPanel = new DungeonPanel();
         worldTreePanel = new WorldTreePanel();
         rollTablePanel = new RollTablePanel();
@@ -35,10 +43,11 @@ public class WorldView extends JFrame {
 
         // Setup Layout: Controls on West, Tabbed pane for Dungeon/World on Center
         tabbedPane = new JTabbedPane();
+        tabbedPane.addTab("Sprite Editor", spriteEditorPanel);
         tabbedPane.addTab("Dungeon Map", dungeonPanel);
         tabbedPane.addTab("World Contents", worldTreePanel);
         tabbedPane.addTab("Roll Tables", rollTablePanel);
-        tabbedPane.setSelectedIndex(1);
+        tabbedPane.setSelectedIndex(0);
 
         JSplitPane mainSplit = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, controlsPanel, tabbedPane);
         mainSplit.setDividerLocation(250);

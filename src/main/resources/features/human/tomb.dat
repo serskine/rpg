@@ -1,0 +1,123 @@
+{
+    colors: {
+        black: '#000000',
+        brown: '#A52A2A',
+        grey: '#808080',
+        white: '#FFFFFF'
+    },
+    bounds: {
+        x: 0,
+        y: 0,
+        width: 24:
+        height: 16
+    },
+    shapes: [
+        {
+            fillColor: brown,
+            lineColor: black,
+            points: [
+                {x: 1, y: 1},
+                {x: 6, y: 1},
+                {x: 6, y: 2},
+                {x: 2, y: 2},
+                {x: 2, y: 6},
+                {x: 1, y: 6}
+            ]
+        },
+        {
+            fillColor: brown,
+            lineColor: black,
+            points: [
+                {X: 10, Y: 1},
+                {x: 14, y: 1},
+                {x: 14, y: 2},
+                {x: 10, y: 2}
+            ]
+        },
+        {
+            fillColor: brown,
+            lineColor: black,
+            points: [
+                {X: 18, Y: 1},
+                {x: 23, y: 1},
+                {x: 23, y: 6},
+                {x: 22, y: 6},
+                {x: 22, y: 2},
+                {x: 18, y: 2}
+            ]
+        },
+        {
+            fillColor: brown,
+            lineColor: black,
+            points: [
+                {X: 1, Y: 10},
+                {x: 2, y: 10},
+                {x: 2, y: 14},
+                {x: 6, y: 14},
+                {x: 6, y: 15},
+                {x: 1, y: 15}
+            ]
+        },
+        {
+            fillColor: brown,
+            lineColor: black,
+            points: [
+                {x: 10, y: 14},
+                {x: 14, y: 14},
+                {x: 14, y: 15},
+                {x: 10, y: 15}
+            ]
+        },
+        {
+            fillColor: brown,
+            lineColor: black,
+            points: [
+                {x: 18, y: 14},
+                {x: 22, y: 14},
+                {x: 22, y: 10},
+                {x: 23, y: 10},
+                {x: 23, y: 15},
+                {x: 18, y: 15}
+            ]
+        },
+        {
+            fillColor: grey,
+            lineColor: black,
+            points: [
+                {x: 2, y: 2},
+                {x: 22, y: 2},
+                {x: 22, y: 14},
+                {x: 2, y: 14}
+            ]
+        },
+        {
+            fillColor: white,
+            lineColor: black,
+            points: [
+                {x: 5, y: 7},
+                {x: 7, y: 7},
+                {x: 7, y: 5},
+                {x: 9, y: 5},
+                {x: 9, y: 7},
+                {x: 15, y: 7},
+                {x: 15, y: 9},
+                {x: 9, y: 9},
+                {x: 9, y: 11},
+                {x: 7, y: 11},
+                {x: 7, y: 9},
+                {x: 5, y: 9}
+            ]
+        },
+        {
+            fillColor: white,
+            lineColor: black,
+            points: [
+                {x: 18, y: 5},
+                {x: 20, y: 5},
+                {x: 20, y: 11},
+                {x: 18, y: 11}
+            ]
+        }
+
+    ]
+}

@@ -1,0 +1,46 @@
+{
+    colors: {
+        black: '#000000',
+        white: '#FFFFFF'
+    },
+    bounds: {x: 0, y: 0, width: 0, height: 0},
+    shapes: [
+    ]
+}
+{
+    colors: {
+        black: '#000000',
+        brown: '#A52A2A'
+    },
+    bounds: {
+        x: 0,
+        y: 0,
+        width: 24:
+        height: 8
+    },
+    shapes: [
+        {
+            fillColor: brown,
+            lineColor: black,
+            points: [
+                {x: 1, y: 1},
+                {x: 23, y: 1},
+                {x: 23, y: 6},
+                {x: 1, y: 6}
+            ]
+        },
+        {
+            fillColor: white,
+            lineColor: black,
+            points: [
+                {x: 2, y: 2},
+                {x: 4, y: 3},
+                {x: 6, y: 2},
+                {x: 6, y: 4},
+                {x: 4, y: 5},
+                {x: 2, y: 4}
+            ]
+        },
+
+    ]
+}
