@@ -11,6 +11,8 @@ public class WorldView extends JFrame {
     private final DungeonPanel dungeonPanel;
     private final WorldTreePanel worldTreePanel;
     private final ControlsPanel controlsPanel;
+    private final SpriteEditorPanel spriteEditorPanel;
+
     private final WorldBuilder worldBuilder;
     private final JTabbedPane tabbedPane;
 
@@ -26,6 +28,7 @@ public class WorldView extends JFrame {
         dungeonPanel = new DungeonPanel();
         worldTreePanel = new WorldTreePanel();
         controlsPanel = new ControlsPanel();
+        spriteEditorPanel = new SpriteEditorPanel();
 
         // Configure Controls
         controlsPanel.setDefaults(defaultPartySize, defaultPartyLevel);
@@ -36,6 +39,7 @@ public class WorldView extends JFrame {
         tabbedPane.addTab("Controls", controlsPanel);
         tabbedPane.addTab("Dungeon Map", dungeonPanel);
         tabbedPane.addTab("World Contents", worldTreePanel);
+        tabbedPane.addTab("Sprite Editor", spriteEditorPanel);
 
         add(tabbedPane);
         
