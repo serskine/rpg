@@ -1,0 +1,49 @@
+{
+    colors: {
+        white: '#FFFFFF',
+        red: '#FF0000',
+        brown: '#A52A2A',
+        grey: '#808080',
+        black: '#000000'
+    },
+    bounds: {x: 0, y: 0, width: 0, height: 0},
+    shapes: [
+        {
+            fillColor: grey,
+            lineColor: white,
+            points: [
+                {x: 1, y: 1},
+                {x: 6, y: 2},
+                {x: 6, y: 14},
+                {x: 1, y: 13}
+            ]
+        },
+        {
+            fillColor: red,
+            lineColor: white,
+            points: [
+                {x: 9, y: 1},
+                {x: 15, y: 2},
+                {x: 15, y: 14},
+                {x: 9, y: 13}
+            ],
+            isOpen: true
+        },
+        {
+            fillColor: null,
+            lineColor: white,
+            points: [
+                {x: 10, y: 12},
+                {x: 23, y: 1}
+            ]
+        },
+        {
+            fillColor: null,
+            lineColor: white,
+            points: [
+                {x: 1, y: 1},
+                {x: 19, y: 8}
+            ]
+        }
+    ]
+}

@@ -191,8 +191,8 @@ public class SpriteDataParser {
      */
     private static Shape parseShape(final String shapeText, final Map<String, String> colors) {
         // Determine shape type based on content
+        // Check for explicit type field first
         if (shapeText.contains("\"type\"") || shapeText.contains("type:")) {
-            // Check for explicit type field
             String type = extractStringField(shapeText, "type");
             if ("circle".equalsIgnoreCase(type)) {
                 return parseCircle(shapeText, colors);
@@ -205,18 +205,26 @@ public class SpriteDataParser {
             } else if ("path".equalsIgnoreCase(type)) {
                 return parsePath(shapeText, colors);
             }
-        } else if (shapeText.contains("radius")) {
+        }
+        
+        // Check for shape-specific fields (in order of specificity)
+        if (shapeText.contains("radius")) {
             // Has radius field -> it's a circle
             return parseCircle(shapeText, colors);
         } else if (shapeText.contains("counterClockwise") || shapeText.contains("counter")) {
             // Has counterClockwise field -> it's an arc
             return parseArc(shapeText, colors);
-        } else if (shapeText.contains("curve:") || shapeText.contains("\"curve\"")) {
-            // Has curve field -> it's a line segment
-            return parseLineSegment(shapeText, colors);
-        } else if (shapeText.contains("controlPoint1") || shapeText.contains("control1")) {
+        } else if (shapeText.contains("controlPoint1") || shapeText.contains("control1") || 
+                   shapeText.contains("controlPoint2") || shapeText.contains("control2")) {
             // Has control point field -> it's a curve
             return parseCurve(shapeText, colors);
+        } else if (shapeText.contains("path:") || shapeText.contains("\"path\"")) {
+            // Has path array -> it's a polygon (with optional segment type properties)
+            return parsePolygon(shapeText, colors);
+        } else if (shapeText.contains("points:") || shapeText.contains("\"points\"")) {
+            // Has points array -> could be polygon or line segment
+            // Default to polygon - SpriteFile constructor will sort them correctly
+            return parsePolygon(shapeText, colors);
         }
         
         // Default: treat as polygon (has points array)
@@ -497,19 +505,19 @@ public class SpriteDataParser {
          }
          
          // Extract each point object from the array
-         // Pattern matches: {type: LEFT, x: 10, y: 20} or {x: 10, y: 20}
-         final Pattern pointObjectPattern = Pattern.compile("\\{\\s*(?:type\\s*:\\s*(\\w+)\\s*,\\s*)?[xX]\\s*:\\s*([-\\d.]+)\\s*,\\s*[yY]\\s*:\\s*([-\\d.]+)\\s*\\}");
+         // Pattern matches: {curve: left, x: 10, y: 20} or {type: LEFT, x: 10, y: 20} or {x: 10, y: 20}
+         final Pattern pointObjectPattern = Pattern.compile("\\{\\s*(?:(?:curve|type)\\s*:\\s*(\\w+)\\s*,\\s*)?[xX]\\s*:\\s*([-\\d.]+)\\s*,\\s*[yY]\\s*:\\s*([-\\d.]+)\\s*\\}");
          final Matcher pointMatcher = pointObjectPattern.matcher(pathArray);
          
          while (pointMatcher.find()) {
              try {
-                 final String typeStr = pointMatcher.group(1);
+                 final String curveStr = pointMatcher.group(1);
                  final double x = Double.parseDouble(pointMatcher.group(2));
                  final double y = Double.parseDouble(pointMatcher.group(3));
                  
-                 final PathSegmentType segmentType = typeStr == null 
+                 final PathSegmentType segmentType = curveStr == null 
                      ? PathSegmentType.STRAIGHT 
-                     : PathSegmentType.parse(typeStr);
+                     : PathSegmentType.parse(curveStr);
                  
                  final PathPoint pathPoint = new PathPoint(segmentType, new Point2D.Double(x, y));
                  pathPoints.add(pathPoint);
@@ -703,9 +711,9 @@ public class SpriteDataParser {
         for (int i = 0; i < path.size(); i++) {
             final PathPoint p = path.get(i);
             sb.append("                {");
-            // Only write type if it's not the default STRAIGHT
+            // Only write curve if it's not the default STRAIGHT
             if (p.type() != PathSegmentType.STRAIGHT) {
-                sb.append("type: ").append(p.type()).append(", ");
+                sb.append("curve: ").append(p.type().toString().toLowerCase()).append(", ");
             }
             sb.append("x: ").append((int)p.x()).append(", y: ").append((int)p.y()).append("}");
             if (i < path.size() - 1) {

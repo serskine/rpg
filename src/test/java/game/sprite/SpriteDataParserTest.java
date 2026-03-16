@@ -109,20 +109,86 @@ public class SpriteDataParserTest {
          assertTrue(formatted.contains("fillColor: black"));
      }
     
-     @Test
-     public void testParseTombDat() throws IOException {
-         // Test with actual tomb.dat file
-         final String content = new String(Files.readAllBytes(
-             Paths.get("src/main/resources/features/human/tomb.dat")
-         ));
-         
-         final SpriteValidationResult result = SpriteDataParser.parse(content);
-         
-         assertTrue(result.isValid(), "Should parse tomb.dat successfully");
-         assertNotNull(result.getSpriteFile());
-         assertTrue(result.getSpriteFile().getPolygons().size() > 0, "Should have polygons");
-         assertTrue(result.getSpriteFile().colors().containsKey("black"), "Should have color definitions");
-     }
+      @Test
+      public void testParseTombDat() throws IOException {
+          // Test with actual tomb.dat file
+          final String content = new String(Files.readAllBytes(
+              Paths.get("src/main/resources/features/human/tomb.dat")
+          ));
+          
+          final SpriteValidationResult result = SpriteDataParser.parse(content);
+          
+          assertTrue(result.isValid(), "Should parse tomb.dat successfully");
+          assertNotNull(result.getSpriteFile());
+          assertTrue(result.getSpriteFile().getPolygons().size() > 0, "Should have polygons");
+          assertTrue(result.getSpriteFile().colors().containsKey("black"), "Should have color definitions");
+      }
+      
+      @Test
+      public void testParseTestDat() throws IOException {
+          // Test with test.dat file that has curve properties
+          final String content = new String(Files.readAllBytes(
+              Paths.get("src/main/resources/features/human/test.dat")
+          ));
+          
+          final SpriteValidationResult result = SpriteDataParser.parse(content);
+          
+          assertTrue(result.isValid(), "Should parse test.dat successfully");
+          assertNotNull(result.getSpriteFile());
+          assertEquals(4, result.getSpriteFile().getPolygons().size(), "Should have 4 polygons");
+          
+          // Debug output
+          System.out.println("=== Parsed test.dat ===");
+          System.out.println("Polygons: " + result.getSpriteFile().getPolygons().size());
+          System.out.println("Curves: " + result.getSpriteFile().getCurves().size());
+          System.out.println("Paths: " + result.getSpriteFile().getPaths().size());
+          
+          // Check first polygon - should have LEFT curves
+          final Polygon polygon1 = result.getSpriteFile().getPolygons().get(0);
+          System.out.println("\nPolygon 1:");
+          System.out.println("  Points: " + polygon1.path().size());
+          System.out.println("  Fill Color: " + polygon1.fillColor());
+          System.out.println("  Line Color: " + polygon1.lineColor());
+          for (int i = 0; i < polygon1.path().size(); i++) {
+              final PathPoint p = polygon1.path().get(i);
+              System.out.println("    Point " + i + ": type=" + p.type() + ", x=" + p.x() + ", y=" + p.y());
+          }
+          assertEquals(4, polygon1.path().size(), "First polygon should have 4 points");
+          assertEquals(PathSegmentType.LEFT, polygon1.path().get(0).type(), "First point should have LEFT curve");
+          assertEquals(PathSegmentType.LEFT, polygon1.path().get(1).type(), "Second point should have LEFT curve");
+          
+          // Check second polygon - should have RIGHT curves
+          final Polygon polygon2 = result.getSpriteFile().getPolygons().get(1);
+          System.out.println("\nPolygon 2:");
+          System.out.println("  Points: " + polygon2.path().size());
+          for (int i = 0; i < polygon2.path().size(); i++) {
+              final PathPoint p = polygon2.path().get(i);
+              System.out.println("    Point " + i + ": type=" + p.type() + ", x=" + p.x() + ", y=" + p.y());
+          }
+          assertEquals(PathSegmentType.RIGHT, polygon2.path().get(0).type(), "First point should have RIGHT curve");
+          assertEquals(PathSegmentType.RIGHT, polygon2.path().get(1).type(), "Second point should have RIGHT curve");
+          
+          // Check third polygon - should have mixed curves
+          final Polygon polygon3 = result.getSpriteFile().getPolygons().get(2);
+          System.out.println("\nPolygon 3:");
+          System.out.println("  Points: " + polygon3.path().size());
+          for (int i = 0; i < polygon3.path().size(); i++) {
+              final PathPoint p = polygon3.path().get(i);
+              System.out.println("    Point " + i + ": type=" + p.type() + ", x=" + p.x() + ", y=" + p.y());
+          }
+          assertEquals(PathSegmentType.NONE, polygon3.path().get(0).type(), "First point should have NONE curve");
+          assertEquals(PathSegmentType.STRAIGHT, polygon3.path().get(1).type(), "Second point should have STRAIGHT curve");
+          
+          // Check fourth polygon - should have STRAIGHT curves
+          final Polygon polygon4 = result.getSpriteFile().getPolygons().get(3);
+          System.out.println("\nPolygon 4:");
+          System.out.println("  Points: " + polygon4.path().size());
+          for (int i = 0; i < polygon4.path().size(); i++) {
+              final PathPoint p = polygon4.path().get(i);
+              System.out.println("    Point " + i + ": type=" + p.type() + ", x=" + p.x() + ", y=" + p.y());
+          }
+          assertEquals(PathSegmentType.STRAIGHT, polygon4.path().get(0).type(), "First point should have STRAIGHT curve");
+      }
      
      @Test
      public void testParseCurveShape() {
