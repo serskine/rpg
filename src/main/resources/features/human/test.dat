@@ -1,0 +1,63 @@
+{
+    colors: {
+        white: '#FFFFFF',
+        red: '#FF0000',
+        brown: '#A52A2A',
+        grey: '#808080',
+        black: '#000000',
+        blue: '#0000FF',
+        green: '#00FF00',
+        yellow: '#FFFF00',
+        cyan: '#00FFFF',
+        magenta: '#FF00FF',
+        orange: '#FFA500',
+        purple: '#800080'
+    },
+    bounds: {x: 0, y: 0, width: 24, height: 24},
+    shapes: [
+        // Polygon with STRAIGHT segments (closed, filled)
+        {
+            fillColor: null,
+            lineColor: yellow,
+            path: [
+                {curve: straight, x: 1, y: 4},
+                {curve: none, x: 6, y: 1},
+                {curve: straight, x: 12, y: 4},
+                {curve: none, x: 6, y: 7}
+            ]
+        }.
+        // Polygon with STRAIGHT segments
+        {
+            fillColor: null,
+            lineColor: white,
+            path: [
+                {curve: left, x: 1, y: 4},
+                {curve: left, x: 6, y: 1},
+                {curve: left, x: 12, y: 4},
+                {curve: left, x: 6, y: 7}
+            ]
+        }.
+        // Polygon with STRAIGHT segments (closed, filled)
+        {
+            fillColor: null,
+            lineColor: red,
+            path: [
+                {curve: right, x: 1, y: 4},
+                {curve: right, x: 6, y: 1},
+                {curve: right, x: 12, y: 4},
+                {curve: right, x: 6, y: 7}
+            ]
+        }.
+        // Polygon with STRAIGHT segments (closed, filled)
+        {
+            fillColor: null,
+            lineColor: yellow,
+            path: [
+                {curve: none, x: 1, y: 4},
+                {curve: straight, x: 6, y: 1},
+                {curve: none, x: 12, y: 4},
+                {curve: straight, x: 6, y: 7}
+            ]
+        }
+    ]
+}

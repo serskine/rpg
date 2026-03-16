@@ -1,0 +1,37 @@
+<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+  <!-- Chest - Treasure/storage -->
+  <defs>
+    <linearGradient id="woodGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#8B6F47;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#5C4A2F;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="metalBandGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#757575;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#9E9E9E;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#757575;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Chest body -->
+  <path d="M 20 50 L 20 35 Q 20 25 30 25 L 70 25 Q 80 25 80 35 L 80 60 Z" fill="url(#woodGradient)" stroke="#3E2723" stroke-width="1.5"/>
+  
+  <!-- Lid/Top with curve -->
+  <path d="M 20 50 Q 50 40 80 50" fill="url(#woodGradient)" stroke="#3E2723" stroke-width="1.5"/>
+  
+  <!-- Metal bands -->
+  <rect x="15" y="32" width="70" height="3" fill="url(#metalBandGradient)" stroke="#424242" stroke-width="0.5"/>
+  <rect x="15" y="45" width="70" height="3" fill="url(#metalBandGradient)" stroke="#424242" stroke-width="0.5"/>
+  <rect x="15" y="58" width="70" height="3" fill="url(#metalBandGradient)" stroke="#424242" stroke-width="0.5"/>
+  
+  <!-- Lock/Keyhole -->
+  <circle cx="50" cy="52" r="3" fill="#DAA520" stroke="#8B7500" stroke-width="1"/>
+  <ellipse cx="50" cy="54" rx="1" ry="1.5" fill="#5C4A2F"/>
+  
+  <!-- Wood planks texture -->
+  <line x1="30" y1="25" x2="30" y2="60" stroke="#5C4A2F" stroke-width="0.5" opacity="0.3"/>
+  <line x1="50" y1="25" x2="50" y2="60" stroke="#5C4A2F" stroke-width="0.5" opacity="0.3"/>
+  <line x1="70" y1="25" x2="70" y2="60" stroke="#5C4A2F" stroke-width="0.5" opacity="0.3"/>
+  
+  <!-- Shadow -->
+  <ellipse cx="50" cy="60" rx="35" ry="3" fill="#000000" opacity="0.15"/>
+</svg>

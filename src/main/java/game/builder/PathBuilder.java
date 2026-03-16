@@ -1,6 +1,7 @@
 package game.builder;
 
 import game.common.Path;
+import game.common.PathDistance;
 import game.common.Rarity;
 
 import java.util.Optional;
@@ -9,16 +10,16 @@ import static game.util.Func.*;
 
 public class PathBuilder {
 
-    public int expectedDistanceFor(final Rarity rarity) {
+    public PathDistance expectedDistanceFor(final Rarity rarity) {
         switch(rarity) {
             case UNCOMMON -> {
-                return 30 + d(6) * 5;
+                return PathDistance.MELEE;
             }
             case RARE -> {
-                return 60 + d(12) * 5;
+                return PathDistance.FAR;
             }
             default -> {
-                return d(6) * 5;
+                return PathDistance.SHORT;
             }
         }
     }

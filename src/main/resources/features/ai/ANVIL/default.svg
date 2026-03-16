@@ -1,0 +1,35 @@
+<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+  <!-- Anvil -->
+  <defs>
+    <linearGradient id="anvilGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#424242;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#212121;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Base block -->
+  <rect x="30" y="55" width="40" height="15" fill="url(#anvilGradient)" stroke="#0D0D0D" stroke-width="1.5" rx="2"/>
+  
+  <!-- Horn (pointing left) -->
+  <path d="M 32 58 Q 20 55 18 60 Q 20 65 32 62 Z" fill="url(#anvilGradient)" stroke="#0D0D0D" stroke-width="1"/>
+  
+  <!-- Face (top working surface) -->
+  <rect x="35" y="50" width="30" height="5" fill="#333333" stroke="#0D0D0D" stroke-width="1.5" rx="1"/>
+  
+  <!-- Heel (right side) -->
+  <path d="M 65 52 L 70 50 L 70 58 L 65 60 Z" fill="url(#anvilGradient)" stroke="#0D0D0D" stroke-width="1"/>
+  
+  <!-- Waist (narrow middle section) -->
+  <rect x="40" y="59" width="20" height="8" fill="#282828" stroke="#0D0D0D" stroke-width="1" rx="1"/>
+  
+  <!-- Details on face -->
+  <line x1="40" y1="52" x2="60" y2="52" stroke="#1A1A1A" stroke-width="0.5" opacity="0.5"/>
+  
+  <!-- Dents/hammer marks -->
+  <circle cx="45" cy="52" r="1.5" fill="#1A1A1A" opacity="0.4"/>
+  <circle cx="50" cy="52" r="1.5" fill="#1A1A1A" opacity="0.4"/>
+  <circle cx="55" cy="52" r="1.5" fill="#1A1A1A" opacity="0.4"/>
+  
+  <!-- Shadow -->
+  <ellipse cx="50" cy="70" rx="25" ry="2" fill="#000000" opacity="0.2"/>
+</svg>

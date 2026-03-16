@@ -1,0 +1,636 @@
+package game.sprite.view;
+
+import game.sprite.Polygon;
+import game.sprite.SpriteDataParser;
+import game.sprite.SpriteFile;
+import game.sprite.SpriteValidationResult;
+import game.util.Logger;
+
+import javax.swing.*;
+import javax.swing.border.CompoundBorder;
+import javax.swing.border.EmptyBorder;
+import javax.swing.border.LineBorder;
+import javax.swing.text.SimpleAttributeSet;
+import javax.swing.text.StyleConstants;
+import java.awt.*;
+import java.awt.event.ActionEvent;
+import java.awt.event.KeyEvent;
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.List;
+
+/**
+ * Main sprite editor panel with large canvas preview (50%) and editable text editor (50%).
+ */
+public class SpriteEditorPanel extends JPanel {
+    // Font constants
+    private static final String FONT_NAME = "Consolas";
+    private static final int INITIAL_FONT_SIZE = 14;
+    private static final int MIN_FONT_SIZE = 8;
+    private static final int MAX_FONT_SIZE = 32;
+    
+    private JTextPane textEditor;
+    private SpriteCanvasPanel canvasPanel;
+    private JLabel statusLabel;
+    private JButton loadButton;
+    private JButton saveButton;
+    private JButton newButton;
+    private JButton increaseFontButton;
+    private JButton decreaseFontButton;
+    private JLabel fontSizeLabel;
+    
+    private SpriteFile currentSpriteFile;
+    private List<Polygon> currentPolygons = new ArrayList<>();
+    private File currentFile;
+    private File lastOpenedDirectory;  // Remember last directory used
+    private boolean isTextEditorUpdating = false;
+    private boolean isCanvasUpdating = false;
+    private int currentFontSize = INITIAL_FONT_SIZE;
+    private int selectedPolygonIndex = -1;  // Track which polygon is selected
+    
+    public SpriteEditorPanel() {
+        this(null);
+    }
+
+    public SpriteEditorPanel(String workingDirectory) {
+        setLayout(new BorderLayout());
+        
+        // Set working directory if provided
+        if (workingDirectory != null && !workingDirectory.isEmpty()) {
+            lastOpenedDirectory = new File(workingDirectory);
+            if (!lastOpenedDirectory.exists()) {
+                Logger.warn("Working directory does not exist: " + workingDirectory);
+                lastOpenedDirectory = null;
+            }
+        }
+        
+        // Set larger fonts for UI components
+        UIManager.put("Button.font", new Font("Dialog", Font.PLAIN, 13));
+        UIManager.put("Label.font", new Font("Dialog", Font.PLAIN, 13));
+        UIManager.put("Menu.font", new Font("Dialog", Font.PLAIN, 13));
+        
+        // Toolbar
+        final JPanel toolbar = createToolbar();
+        add(toolbar, BorderLayout.NORTH);
+        
+        // Main content: split pane with text editor (left 50%) and canvas (right 50%)
+        textEditor = createTextEditor();
+        
+        // Wrap text editor with scrollbars
+        final JScrollPane textScrollPane = new JScrollPane(textEditor);
+        textScrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED);
+        textScrollPane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
+        
+        final JPanel textWrapper = new JPanel(new BorderLayout());
+        textWrapper.add(textScrollPane, BorderLayout.CENTER);
+        textWrapper.setBorder(new CompoundBorder(
+            new LineBorder(Color.BLACK, 1),
+            new EmptyBorder(5, 5, 5, 5)
+        ));
+        
+        canvasPanel = new SpriteCanvasPanel();
+        
+        final JPanel canvasWrapper = new JPanel(new BorderLayout());
+        canvasWrapper.add(canvasPanel, BorderLayout.CENTER);
+        canvasWrapper.setBorder(new CompoundBorder(
+            new LineBorder(Color.GREEN, 3),
+            new EmptyBorder(5, 5, 5, 5)
+        ));
+        
+        final JSplitPane mainSplit = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, textWrapper, canvasWrapper);
+        mainSplit.setDividerLocation(0.5);  // 50/50 split
+        mainSplit.setResizeWeight(0.5);     // Grow evenly
+        add(mainSplit, BorderLayout.CENTER);
+        
+        // Bottom: Status bar
+        statusLabel = new JLabel("Ready");
+        statusLabel.setFont(new Font("Dialog", Font.PLAIN, 13));
+        statusLabel.setBorder(new EmptyBorder(5, 5, 5, 5));
+        add(statusLabel, BorderLayout.SOUTH);
+        
+        // Setup interactions
+        setupInteractions();
+        
+        // Defer keyboard shortcuts setup until we're part of a frame
+        SwingUtilities.invokeLater(this::setupKeyboardShortcuts);
+        
+        // Initial state
+        initializeEmpty();
+    }
+    
+    private JPanel createToolbar() {
+        final JPanel panel = new JPanel();
+        panel.setLayout(new FlowLayout(FlowLayout.LEFT, 5, 5));
+        panel.setBorder(new EmptyBorder(8, 8, 8, 8));
+        
+        loadButton = new JButton("Load File");
+        loadButton.setFont(new Font("Dialog", Font.PLAIN, 13));
+        loadButton.addActionListener(e -> onLoadFile());
+        panel.add(loadButton);
+        
+        saveButton = new JButton("Save");
+        saveButton.setFont(new Font("Dialog", Font.PLAIN, 13));
+        saveButton.addActionListener(e -> onSaveFile());
+        panel.add(saveButton);
+        
+        final JButton exportButton = new JButton("Export");
+        exportButton.setFont(new Font("Dialog", Font.PLAIN, 13));
+        exportButton.addActionListener(e -> onExportFile());
+        panel.add(exportButton);
+        
+        newButton = new JButton("New");
+        newButton.setFont(new Font("Dialog", Font.PLAIN, 13));
+        newButton.addActionListener(e -> onNew());
+        panel.add(newButton);
+        
+        final JButton refreshButton = new JButton("Refresh");
+        refreshButton.setFont(new Font("Dialog", Font.PLAIN, 13));
+        refreshButton.addActionListener(e -> onRefresh());
+        panel.add(refreshButton);
+        
+        panel.add(new JSeparator(SwingConstants.VERTICAL));
+        
+        // Font size controls
+        decreaseFontButton = new JButton("A-");
+        decreaseFontButton.setFont(new Font("Dialog", Font.PLAIN, 13));
+        decreaseFontButton.setPreferredSize(new Dimension(50, 30));
+        decreaseFontButton.addActionListener(e -> decreaseFontSize());
+        panel.add(decreaseFontButton);
+        
+        fontSizeLabel = new JLabel(String.valueOf(currentFontSize));
+        fontSizeLabel.setFont(new Font("Dialog", Font.PLAIN, 13));
+        fontSizeLabel.setPreferredSize(new Dimension(30, 30));
+        fontSizeLabel.setHorizontalAlignment(SwingConstants.CENTER);
+        panel.add(fontSizeLabel);
+        
+        increaseFontButton = new JButton("A+");
+        increaseFontButton.setFont(new Font("Dialog", Font.PLAIN, 13));
+        increaseFontButton.setPreferredSize(new Dimension(50, 30));
+        increaseFontButton.addActionListener(e -> increaseFontSize());
+        panel.add(increaseFontButton);
+        
+        return panel;
+    }
+    
+    private JTextPane createTextEditor() {
+        final JTextPane editor = new JTextPane();
+        // Use Consolas font with initial size
+        editor.setFont(new Font(FONT_NAME, Font.PLAIN, currentFontSize));
+        editor.getDocument().addDocumentListener(new javax.swing.event.DocumentListener() {
+            @Override
+            public void insertUpdate(final javax.swing.event.DocumentEvent e) {
+                onTextEditorChanged();
+            }
+            
+            @Override
+            public void removeUpdate(final javax.swing.event.DocumentEvent e) {
+                onTextEditorChanged();
+            }
+            
+            @Override
+            public void changedUpdate(final javax.swing.event.DocumentEvent e) {
+                onTextEditorChanged();
+            }
+        });
+        
+        // Add caret listener to track which polygon the cursor is in
+        editor.addCaretListener(e -> onTextEditorCaretMoved(e.getDot()));
+        
+        // Add key listener to convert tab key to 4 spaces
+        editor.addKeyListener(new java.awt.event.KeyAdapter() {
+            @Override
+            public void keyPressed(final java.awt.event.KeyEvent e) {
+                if (e.getKeyCode() == java.awt.event.KeyEvent.VK_TAB) {
+                    e.consume();
+                    final int caretPos = editor.getCaretPosition();
+                    try {
+                        editor.getDocument().insertString(caretPos, "    ", null);
+                    } catch (final javax.swing.text.BadLocationException ex) {
+                        Logger.error("Failed to insert spaces", ex);
+                    }
+                }
+            }
+        });
+        
+        return editor;
+    }
+    
+    private void setupInteractions() {
+        canvasPanel.setOnPolygonsChanged(() -> {
+            currentPolygons = canvasPanel.getPolygons();
+            updateTextEditorFromCanvas();
+        });
+    }
+    
+    private void setupKeyboardShortcuts() {
+        final JRootPane rootPane = getRootPane();
+        if (rootPane == null) {
+            // Not yet added to frame, try again later
+            SwingUtilities.invokeLater(this::setupKeyboardShortcuts);
+            return;
+        }
+        
+        final KeyStroke undoKey = KeyStroke.getKeyStroke(KeyEvent.VK_Z, java.awt.event.InputEvent.CTRL_DOWN_MASK);
+        final KeyStroke redoKey = KeyStroke.getKeyStroke(KeyEvent.VK_Y, java.awt.event.InputEvent.CTRL_DOWN_MASK);
+        final KeyStroke increaseFontKey = KeyStroke.getKeyStroke(KeyEvent.VK_PLUS, java.awt.event.InputEvent.CTRL_DOWN_MASK);
+        final KeyStroke decreaseFontKey = KeyStroke.getKeyStroke(KeyEvent.VK_MINUS, java.awt.event.InputEvent.CTRL_DOWN_MASK);
+        
+        rootPane.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(undoKey, "undo");
+        rootPane.getActionMap().put("undo", new AbstractAction() {
+            @Override
+            public void actionPerformed(final ActionEvent e) {
+                // TODO: Implement undo
+            }
+        });
+        
+        rootPane.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(redoKey, "redo");
+        rootPane.getActionMap().put("redo", new AbstractAction() {
+            @Override
+            public void actionPerformed(final ActionEvent e) {
+                // TODO: Implement redo
+            }
+        });
+        
+        rootPane.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(increaseFontKey, "increaseFont");
+        rootPane.getActionMap().put("increaseFont", new AbstractAction() {
+            @Override
+            public void actionPerformed(final ActionEvent e) {
+                increaseFontSize();
+            }
+        });
+        
+        rootPane.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(decreaseFontKey, "decreaseFont");
+        rootPane.getActionMap().put("decreaseFont", new AbstractAction() {
+            @Override
+            public void actionPerformed(final ActionEvent e) {
+                decreaseFontSize();
+            }
+        });
+    }
+    
+    private void increaseFontSize() {
+        if (currentFontSize < MAX_FONT_SIZE) {
+            currentFontSize++;
+            updateTextEditorFont();
+        }
+    }
+    
+    private void decreaseFontSize() {
+        if (currentFontSize > MIN_FONT_SIZE) {
+            currentFontSize--;
+            updateTextEditorFont();
+        }
+    }
+    
+    private void updateTextEditorFont() {
+        textEditor.setFont(new Font(FONT_NAME, Font.PLAIN, currentFontSize));
+        fontSizeLabel.setText(String.valueOf(currentFontSize));
+    }
+    
+    private void initializeEmpty() {
+        currentPolygons = new ArrayList<>();
+        currentSpriteFile = new SpriteFile(
+            java.util.Map.of("black", "#000000", "white", "#FFFFFF"),
+            new ArrayList<>(currentPolygons)
+        );
+        currentFile = null;
+        
+        canvasPanel.setSpriteFile(currentSpriteFile);
+        updateTextEditorFromCanvas();
+        updateValidationStatus(true, null);
+    }
+    
+    private void onLoadFile() {
+        final JFileChooser chooser = new JFileChooser();
+        chooser.setPreferredSize(new Dimension(900, 600));  // Make dialog much larger
+        
+        // Set to last opened directory if available
+        if (lastOpenedDirectory != null && lastOpenedDirectory.exists()) {
+            chooser.setCurrentDirectory(lastOpenedDirectory);
+        }
+        
+        chooser.setFileFilter(new javax.swing.filechooser.FileNameExtensionFilter("Data files (*.dat)", "dat"));
+        
+        final int result = chooser.showOpenDialog(this);
+        if (result == JFileChooser.APPROVE_OPTION) {
+            final File file = chooser.getSelectedFile();
+            // Remember this directory for future file operations
+            lastOpenedDirectory = file.getParentFile();
+            loadFile(file);
+        }
+    }
+    
+    private void loadFile(final File file) {
+        try {
+            String content = new String(Files.readAllBytes(file.toPath()));
+            // Convert all tabs to exactly 4 spaces
+            content = content.replace("\t", "    ");
+            
+            final SpriteValidationResult validationResult = SpriteDataParser.parse(content);
+            
+            if (!validationResult.isValid()) {
+                updateValidationStatus(false, validationResult.getErrorMessage());
+                statusLabel.setText("Error: " + validationResult.getErrorMessage());
+                return;
+            }
+            
+            currentSpriteFile = validationResult.getSpriteFile();
+            currentPolygons = new ArrayList<>(currentSpriteFile.getPolygons());
+            currentFile = file;
+            
+            isTextEditorUpdating = true;
+            textEditor.setText(content);
+            isTextEditorUpdating = false;
+            
+            canvasPanel.setSpriteFile(currentSpriteFile);
+            
+            updateValidationStatus(true, null);
+            statusLabel.setText("Loaded: " + file.getName());
+        } catch (final IOException e) {
+            updateValidationStatus(false, "Failed to read file: " + e.getMessage());
+            statusLabel.setText("Error loading file: " + e.getMessage());
+        }
+    }
+    
+    private void onSaveFile() {
+        if (currentFile == null) {
+            onExportFile();
+            return;
+        }
+        
+        try {
+            String content = textEditor.getText();
+            // Convert all tabs to exactly 4 spaces before saving
+            content = content.replace("\t", "    ");
+            Files.write(Paths.get(currentFile.toURI()), content.getBytes());
+            statusLabel.setText("Saved: " + currentFile.getName());
+        } catch (final IOException e) {
+            statusLabel.setText("Error saving file: " + e.getMessage());
+        }
+    }
+    
+    private void onExportFile() {
+        final JFileChooser chooser = new JFileChooser();
+        chooser.setPreferredSize(new Dimension(900, 600));  // Make dialog much larger
+        
+        // Set to last opened directory if available
+        if (lastOpenedDirectory != null && lastOpenedDirectory.exists()) {
+            chooser.setCurrentDirectory(lastOpenedDirectory);
+        }
+        
+        chooser.setFileFilter(new javax.swing.filechooser.FileNameExtensionFilter("Data files (*.dat)", "dat"));
+        
+        final int result = chooser.showSaveDialog(this);
+        if (result == JFileChooser.APPROVE_OPTION) {
+            final File file = chooser.getSelectedFile();
+            // Remember this directory for future file operations
+            lastOpenedDirectory = file.getParentFile();
+            try {
+                String content = textEditor.getText();
+                // Convert all tabs to exactly 4 spaces before saving
+                content = content.replace("\t", "    ");
+                Files.write(Paths.get(file.toURI()), content.getBytes());
+                currentFile = file;
+                statusLabel.setText("Exported: " + file.getName());
+            } catch (final IOException e) {
+                statusLabel.setText("Error exporting file: " + e.getMessage());
+            }
+        }
+    }
+    
+    private void onNew() {
+        initializeEmpty();
+        currentFile = null;
+        statusLabel.setText("New sprite file created");
+    }
+    
+    private void onRefresh() {
+        // Reload the sprite from the current text editor content
+        final String text = textEditor.getText();
+        final SpriteValidationResult result = SpriteDataParser.parse(text);
+        
+        if (!result.isValid()) {
+            updateValidationStatus(false, result.getErrorMessage());
+            statusLabel.setText("Refresh failed: " + result.getErrorMessage());
+            return;
+        }
+        
+        // Valid! Update the canvas with the refreshed data
+        currentSpriteFile = result.getSpriteFile();
+        currentPolygons = new ArrayList<>(currentSpriteFile.getPolygons());
+        
+        isCanvasUpdating = true;
+        canvasPanel.setSpriteFile(currentSpriteFile);
+        isCanvasUpdating = false;
+        
+        updateValidationStatus(true, null);
+        statusLabel.setText("Sprite refreshed from text");
+    }
+    
+    private void onTextEditorChanged() {
+        if (isTextEditorUpdating || isCanvasUpdating) {
+            return;
+        }
+        
+        final String text = textEditor.getText();
+        final SpriteValidationResult result = SpriteDataParser.parse(text);
+        
+        if (!result.isValid()) {
+            updateValidationStatus(false, result.getErrorMessage());
+            // Even with invalid text, try to highlight the polygon at cursor position
+            updatePolygonSelectionFromCaret();
+            return;
+        }
+        
+        // Valid! Update the canvas
+        currentSpriteFile = result.getSpriteFile();
+        currentPolygons = new ArrayList<>(currentSpriteFile.getPolygons());
+        
+        isCanvasUpdating = true;
+        canvasPanel.setSpriteFile(currentSpriteFile);
+        isCanvasUpdating = false;
+        
+        updateValidationStatus(true, null);
+        
+        // Update selection based on current cursor position
+        updatePolygonSelectionFromCaret();
+    }
+    
+    /**
+     * Called when the caret position changes in the text editor.
+     * Detects which polygon the cursor is in and selects it in the canvas.
+     */
+    private void onTextEditorCaretMoved(final int caretPos) {
+        updatePolygonSelectionFromCaret();
+    }
+    
+    /**
+     * Update polygon selection based on current caret position.
+     * Syncs the canvas selection to match which polygon the cursor is in.
+     */
+    private void updatePolygonSelectionFromCaret() {
+        if (isTextEditorUpdating || isCanvasUpdating) {
+            return;
+        }
+        
+        final String editorText = textEditor.getText();
+        final int caretPos = textEditor.getCaretPosition();
+        final int polygonIndex = findPolygonIndexAtPosition(editorText, caretPos);
+        
+        // Update canvas selection based on cursor position
+        if (polygonIndex >= 0 && polygonIndex < currentPolygons.size()) {
+            if (polygonIndex != selectedPolygonIndex) {
+                selectedPolygonIndex = polygonIndex;
+                isCanvasUpdating = true;
+                canvasPanel.selectPolygon(polygonIndex);
+                isCanvasUpdating = false;
+            }
+        } else if (selectedPolygonIndex >= 0) {
+            // Cursor is not in any polygon, clear selection
+            selectedPolygonIndex = -1;
+            isCanvasUpdating = true;
+            canvasPanel.selectPolygon(-1);
+            isCanvasUpdating = false;
+        }
+    }
+    
+    /**
+     * Find which polygon contains the given character position in the text.
+     */
+    private int findPolygonIndexAtPosition(final String text, final int position) {
+        // Find the opening bracket of the polygons array
+        // It comes after "colors:" and its closing brace
+        final int colorsStart = text.indexOf("colors:");
+        if (colorsStart == -1) {
+            return -1;
+        }
+        
+        // Find the colors closing brace
+        int colorsOpenBrace = text.indexOf("{", colorsStart);
+        if (colorsOpenBrace == -1) {
+            return -1;
+        }
+        
+        int braceCount = 0;
+        int colorsCloseBrace = -1;
+        for (int i = colorsOpenBrace; i < text.length(); i++) {
+            if (text.charAt(i) == '{') {
+                braceCount++;
+            } else if (text.charAt(i) == '}') {
+                braceCount--;
+                if (braceCount == 0) {
+                    colorsCloseBrace = i;
+                    break;
+                }
+            }
+        }
+        
+        if (colorsCloseBrace == -1) {
+            return -1;
+        }
+        
+        // Find the opening bracket of the polygons array (after colors object)
+        final int arrayStart = text.indexOf("[", colorsCloseBrace);
+        if (arrayStart == -1 || position < arrayStart) {
+            return -1;
+        }
+        
+        // Count braces to find which polygon this position is in
+        int polygonBraceCount = 0;
+        int currentPolygon = -1;
+        boolean inPolygon = false;
+        
+        for (int i = arrayStart; i < text.length() && i <= position; i++) {
+            final char c = text.charAt(i);
+            
+            if (c == '{') {
+                if (polygonBraceCount == 0) {
+                    // Starting a new polygon
+                    currentPolygon++;
+                    inPolygon = true;
+                }
+                polygonBraceCount++;
+            } else if (c == '}') {
+                polygonBraceCount--;
+                if (polygonBraceCount == 0) {
+                    // Closed a polygon
+                    inPolygon = false;
+                    if (i < position) {
+                        // Position is after this polygon, so we're not in any polygon
+                        currentPolygon = -1;
+                    }
+                }
+            }
+        }
+        
+        // If we're still inside braces, return the current polygon
+        return inPolygon && currentPolygon >= 0 ? currentPolygon : -1;
+    }
+
+    
+    private void updateTextEditorFromCanvas() {
+        if (isCanvasUpdating) {
+            return;
+        }
+        
+        isTextEditorUpdating = true;
+        currentSpriteFile = new SpriteFile(currentSpriteFile.colors(), new ArrayList<>(currentPolygons));
+        textEditor.setText(SpriteDataParser.formatToText(currentSpriteFile));
+        isTextEditorUpdating = false;
+    }
+    
+    private void updateValidationStatus(final boolean isValid, final String errorMessage) {
+        // Get the main split pane
+        JComponent mainSplitComponent = null;
+        for (final Component comp : getComponents()) {
+            if (comp instanceof JSplitPane) {
+                mainSplitComponent = (JComponent) comp;
+                break;
+            }
+        }
+        
+        if (!(mainSplitComponent instanceof JSplitPane)) {
+            return;
+        }
+        
+        final JSplitPane mainSplit = (JSplitPane) mainSplitComponent;
+        final JPanel canvasWrapper = (JPanel) mainSplit.getRightComponent();
+        
+        if (isValid) {
+            canvasWrapper.setBorder(new CompoundBorder(
+                new LineBorder(new Color(0, 200, 0), 3),
+                new EmptyBorder(5, 5, 5, 5)
+            ));
+        } else {
+            canvasWrapper.setBorder(new CompoundBorder(
+                new LineBorder(new Color(200, 0, 0), 3),
+                new EmptyBorder(5, 5, 5, 5)
+            ));
+            if (errorMessage != null) {
+                statusLabel.setText("Validation error: " + errorMessage);
+            }
+        }
+    }
+     
+    private int findPolygonEndPosition(final String text, final int startPos) {
+        int braceCount = 0;
+        
+        for (int i = startPos; i < text.length(); i++) {
+            final char c = text.charAt(i);
+            
+            if (c == '{') {
+                braceCount++;
+            } else if (c == '}') {
+                braceCount--;
+                if (braceCount == 0) {
+                    return i + 1;
+                }
+            }
+        }
+        
+        return -1;
+    }
+}

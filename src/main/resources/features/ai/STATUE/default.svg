@@ -1,0 +1,43 @@
+<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+  <!-- Statue -->
+  <defs>
+    <linearGradient id="statueGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#E0E0E0;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#BDBDBD;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#9E9E9E;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Pedestal base -->
+  <rect x="35" y="65" width="30" height="10" fill="url(#statueGradient)" stroke="#616161" stroke-width="1"/>
+  
+  <!-- Pedestal middle -->
+  <rect x="40" y="55" width="20" height="10" fill="url(#statueGradient)" stroke="#616161" stroke-width="1"/>
+  
+  <!-- Statue base -->
+  <rect x="42" y="50" width="16" height="5" fill="url(#statueGradient)" stroke="#616161" stroke-width="1"/>
+  
+  <!-- Legs -->
+  <rect x="45" y="40" width="3.5" height="10" fill="url(#statueGradient)" stroke="#616161" stroke-width="0.5"/>
+  <rect x="51.5" y="40" width="3.5" height="10" fill="url(#statueGradient)" stroke="#616161" stroke-width="0.5"/>
+  
+  <!-- Torso -->
+  <rect x="44" y="28" width="12" height="12" fill="url(#statueGradient)" stroke="#616161" stroke-width="0.5" rx="1"/>
+  
+  <!-- Head -->
+  <circle cx="50" cy="20" r="5" fill="url(#statueGradient)" stroke="#616161" stroke-width="0.5"/>
+  
+  <!-- Arms -->
+  <line x1="44" y1="32" x2="38" y2="35" stroke="#BDBDBD" stroke-width="2" stroke-linecap="round"/>
+  <line x1="56" y1="32" x2="62" y2="35" stroke="#BDBDBD" stroke-width="2" stroke-linecap="round"/>
+  
+  <!-- Crown/hair detail -->
+  <path d="M 46 16 L 48 12 L 50 11 L 52 12 L 54 16" fill="none" stroke="#9E9E9E" stroke-width="1.5" stroke-linecap="round"/>
+  
+  <!-- Facial features -->
+  <circle cx="48" cy="19" r="1" fill="#757575"/>
+  <circle cx="52" cy="19" r="1" fill="#757575"/>
+  
+  <!-- Shadow -->
+  <ellipse cx="50" cy="75" rx="20" ry="2" fill="#000000" opacity="0.2"/>
+</svg>

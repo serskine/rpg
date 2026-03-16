@@ -2,6 +2,7 @@ package game.view;
 
 import game.builder.WorldBuilder;
 import game.common.World;
+import game.sprite.view.SpriteEditorPanel;
 
 import javax.swing.*;
 import java.awt.*;
@@ -10,38 +11,52 @@ public class WorldView extends JFrame {
 
     private final DungeonPanel dungeonPanel;
     private final WorldTreePanel worldTreePanel;
+    private final RollTablePanel rollTablePanel;
     private final ControlsPanel controlsPanel;
-    private final SpriteEditorPanel spriteEditorPanel;
-
     private final WorldBuilder worldBuilder;
     private final JTabbedPane tabbedPane;
+    private SpriteEditorPanel spriteEditorPanel;
 
     public WorldView(int defaultPartySize, int defaultPartyLevel) {
+        this(defaultPartySize, defaultPartyLevel, null);
+    }
+
+    public WorldView(int defaultPartySize, int defaultPartyLevel, String workingDirectory) {
         super("Dungeon World Viewer");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        setSize(1024, 768);
+        setSize(1200, 800);
         setLocationRelativeTo(null);
+        setExtendedState(JFrame.MAXIMIZED_BOTH);  // Start window maximized
 
         worldBuilder = new WorldBuilder();
 
         // Initialize Panels
+        spriteEditorPanel = new SpriteEditorPanel(workingDirectory);
         dungeonPanel = new DungeonPanel();
         worldTreePanel = new WorldTreePanel();
+        rollTablePanel = new RollTablePanel();
         controlsPanel = new ControlsPanel();
-        spriteEditorPanel = new SpriteEditorPanel();
 
         // Configure Controls
         controlsPanel.setDefaults(defaultPartySize, defaultPartyLevel);
         controlsPanel.setOnGenerateListener(this::generateWorld);
 
-        // Setup Tabs
+        // Setup Layout: Controls on West, Tabbed pane for Dungeon/World on Center
         tabbedPane = new JTabbedPane();
-        tabbedPane.addTab("Controls", controlsPanel);
+        tabbedPane.addTab("Sprite Editor", spriteEditorPanel);
         tabbedPane.addTab("Dungeon Map", dungeonPanel);
         tabbedPane.addTab("World Contents", worldTreePanel);
-        tabbedPane.addTab("Sprite Editor", spriteEditorPanel);
+        tabbedPane.addTab("Roll Tables", rollTablePanel);
+        tabbedPane.setSelectedIndex(0);
 
-        add(tabbedPane);
+        JSplitPane mainSplit = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, controlsPanel, tabbedPane);
+        mainSplit.setDividerLocation(250);
+        mainSplit.setResizeWeight(0.0);
+        
+        setContentPane(mainSplit);
+        
+        // Setup room selection listener
+        dungeonPanel.setRoomSelectionListener(worldTreePanel::showRoomSelected);
         
         // Initial Generation
         generateWorld(defaultPartySize, defaultPartyLevel);

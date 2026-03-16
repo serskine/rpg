@@ -1,31 +1,37 @@
 package game.common;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Optional;
 
 import static game.common.Alignment.NEUTRAL;
 import static game.common.CreatureSize.MEDIUM;
+import static game.common.Speed.IMMOBILE;
 import static game.util.Func.*;
+import static game.util.Text.capitalized;
 
 public class Creature {
     public Job job;
     public int damage;
-    public int movement;
     public int level;
     public Alignment alignment;
     public CreatureSize size;
     public String title;
+    private final Map<MovementType, Speed> movementMap;
+    private int distanceTravelled = 0;
 
     private Optional<Integer> stealthDc;
 
     public Creature() {
         this.job = Job.COMMONER;
         this.damage = 0;
-        this.movement = speed();
         this.level = 1;
         this.alignment = NEUTRAL;
         this.size = MEDIUM;
         this.title = size.name() + "-" + job.name();
         this.stealthDc = Optional.empty();
+        this.movementMap = new HashMap<>();
+        this.distanceTravelled = 0;
     }
 
     public Creature copy() {
@@ -33,7 +39,7 @@ public class Creature {
 
         copy.job = this.job;
         copy.damage = this.damage;
-        copy.movement = this.movement;
+        copy.distanceTravelled = this.distanceTravelled;
         copy.level = this.level;
         copy.alignment = this.alignment;
         copy.size = this.size;
@@ -43,8 +49,8 @@ public class Creature {
         return copy;
     }
 
-    public int speed() {
-        return modifier(body()) * 5 + 25;
+    public Speed speed(final MovementType movementType) {
+        return movementMap.getOrDefault(movementType, IMMOBILE);
     }
 
     public int hp() {
@@ -146,23 +152,28 @@ public class Creature {
         stealthDc = Optional.of(d(20) + modifier(dexterity()));
     }
 
-    public void dash() {
-        movement += speed();
-    }
-
-    public int move(final int distance) {
-         if (distance > movement) {
-             final int actualDistance = movement;
-             movement  = 0;
-             return actualDistance;
-         } else {
-             movement -= distance;
-             return distance;
-         }
-    }
-
     public void resetMovement() {
-        movement = speed();
+        distanceTravelled = 0;
+    }
+
+    public boolean canMove(final PathDistance pathDistance, final MovementType movementType) {
+        if (!movementMap.containsKey(movementType)) {
+            return false;
+        } else {
+
+            final Speed speed = movementMap.get(movementType);
+            final int movementRemaining = speed.factor - distanceTravelled;
+            return (movementRemaining >= pathDistance.minimum);
+        }
+    }
+
+    public boolean move(final PathDistance pathDistance, final MovementType movementType) {
+        if (canMove(pathDistance, movementType)) {
+            distanceTravelled += pathDistance.minimum;
+            return true;
+        } else {
+            return false;
+        }
     }
 
     public int passivePerception() {
@@ -173,6 +184,12 @@ public class Creature {
         return 10 + modifier(wisdom());
     }
 
-
+    @Override
+    public String toString() {
+        return capitalized(title)
+                + " (Level " + level + " "
+                + ((size == MEDIUM) ? "" : capitalized(size.name())) + " "
+                + capitalized(job.name()) + ")";
+    }
     
 }
