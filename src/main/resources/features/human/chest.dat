@@ -1,0 +1,51 @@
+{
+    colors: {
+        white: '#FFFFFF',
+        red: '#FF0000',
+        brown: '#A52A2A',
+        black: '#000000',
+        blue: '#0000FF',
+        grey: '#808080',
+        green: '#00FF00',
+        yellow: '#FFFF00',
+        cyan: '#00FFFF',
+        magenta: '#FF00FF',
+        orange: '#FFA500',
+        purple: '#800080'
+    },
+    bounds: { x: 0, y: 0, width: 24, height: 24 },
+    tileSize: 8,
+    shapes: [
+        {
+            fillColor: brown,
+            lineColor: black,
+            path: [
+                {   curve: straight, x: 1, y: 3     },
+                {   curve: left, x: 3, y: 1         },
+                {   curve: straight, x: 5, y: 1     },
+                {   curve: left, x: 7, y: 3         },
+                {   curve: straight, x: 7, y: 7     },
+                {   curve: straight, x: 1, y: 7     }
+            ]
+        },
+        {
+            fillColor: null,
+            lineColor: black,
+            path: [
+                {   x: 1, y: 3.5     },
+                {   x: 7, y: 3.5     }
+            ]
+        },
+        {
+            fillColor: orange,
+            lineColor: black,
+            path: [
+                {   curve: straight, x: 3, y: 3.5     },
+                {   curve: straight, x: 5, y: 3.5     },
+                {   curve: straight, x: 5, y: 4.5     },
+                {   curve: straight, x: 3, y: 4.5     }
+            ]
+        }
+    ]
+
+}

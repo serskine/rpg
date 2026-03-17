@@ -49,6 +49,7 @@ public class SpriteCanvasPanel extends JPanel {
     private List<Polygon> polygons = new ArrayList<>();
     private Map<String, Color> colorCache = new HashMap<>();
     private int selectedPolygonIndex = -1;
+    private boolean useSaturatedColors = false;  // false = semi-transparent (default), true = saturated
     
     // Viewport state
     private double scale = 1.0;  // Pixels per grid cell (at 1.0, each grid cell = GRID_CELL_SIZE_PX)
@@ -79,12 +80,16 @@ public class SpriteCanvasPanel extends JPanel {
             public void mousePressed(final MouseEvent e) {
                 lastMousePoint = e.getPoint();
                 
-                if (SwingUtilities.isRightMouseButton(e)) {
-                    // Right-click: prepare for pan/zoom
+                // Left mouse button takes priority - if left is pressed, handle left click
+                if (SwingUtilities.isLeftMouseButton(e)) {
+                    // Left-click: select point for potential drag
+                    dragSourcePoint = findPointAtScreenLocation(e.getPoint());
+                    if (dragSourcePoint != null) {
+                        dragCurrentPoint = new Point2D.Double(dragSourcePoint.x, dragSourcePoint.y);
+                    }
                     e.consume();
-                } else if (SwingUtilities.isLeftMouseButton(e)) {
-                    // Left-click: select polygon or add point
-                    handleLeftClick(e.getPoint());
+                } else if (SwingUtilities.isRightMouseButton(e) && dragSourcePoint == null) {
+                    // Right-click: prepare for pan/zoom (only if no left drag active)
                     e.consume();
                 }
             }
@@ -95,7 +100,22 @@ public class SpriteCanvasPanel extends JPanel {
                      return;
                  }
                  
-                 if ((e.getModifiersEx() & InputEvent.BUTTON3_DOWN_MASK) != 0) {
+                 // Left mouse button takes priority
+                 final boolean leftPressed = (e.getModifiersEx() & InputEvent.BUTTON1_DOWN_MASK) != 0;
+                 final boolean rightPressed = (e.getModifiersEx() & InputEvent.BUTTON3_DOWN_MASK) != 0;
+                 
+                 if (leftPressed) {
+                     // Left-click drag: drag point
+                     final Point2D.Double gridPoint = screenToGrid(e.getPoint());
+                     final Point2D.Double snappedPoint = snapToGrid(gridPoint);
+                     
+                     // If we have an active drag, update the destination
+                     if (dragSourcePoint != null) {
+                         dragCurrentPoint = snappedPoint;
+                         repaint();
+                         e.consume();
+                     }
+                 } else if (rightPressed) {
                      // Right-click drag: pan
                      final double dx = e.getX() - lastMousePoint.getX();
                      final double dy = e.getY() - lastMousePoint.getY();
@@ -104,25 +124,6 @@ public class SpriteCanvasPanel extends JPanel {
                      lastMousePoint = e.getPoint();
                      repaint();
                      e.consume();
-                 } else if ((e.getModifiersEx() & InputEvent.BUTTON1_DOWN_MASK) != 0) {
-                     // Left-click drag: drag point
-                     final Point2D.Double gridPoint = screenToGrid(e.getPoint());
-                     final Point2D.Double snappedPoint = snapToGrid(gridPoint);
-                     
-                     // If we're not currently dragging, try to start a drag
-                     if (dragSourcePoint == null) {
-                         dragSourcePoint = findPointAtScreenLocation(e.getPoint());
-                         if (dragSourcePoint != null) {
-                             dragCurrentPoint = new Point2D.Double(dragSourcePoint.x, dragSourcePoint.y);
-                         }
-                     }
-                     
-                     // If we have an active drag, update the destination
-                     if (dragSourcePoint != null) {
-                         dragCurrentPoint = snappedPoint;
-                         repaint();
-                         e.consume();
-                     }
                  }
              }
             
@@ -171,28 +172,32 @@ public class SpriteCanvasPanel extends JPanel {
              
              @Override
              public void mouseReleased(final MouseEvent e) {
-                 // Complete point drag if one is in progress
-                 if (dragSourcePoint != null && dragCurrentPoint != null && 
-                     !dragSourcePoint.equals(dragCurrentPoint)) {
-                     // Apply the point move
-                     applyPointDrag(dragSourcePoint, dragCurrentPoint);
+                 // Only release drag on left mouse button release
+                 if (SwingUtilities.isLeftMouseButton(e)) {
+                     // Complete point drag if one is in progress
+                     if (dragSourcePoint != null && dragCurrentPoint != null && 
+                         !dragSourcePoint.equals(dragCurrentPoint)) {
+                         // Apply the point move
+                         applyPointDrag(dragSourcePoint, dragCurrentPoint);
+                     }
+                     
+                     // Clear drag state
+                     dragSourcePoint = null;
+                     dragCurrentPoint = null;
+                     dragShapeType = null;
+                     dragPointIndex = -1;
+                     dragShapeIndex = -1;
+                     
+                     repaint();
+                     e.consume();
                  }
-                 
-                 // Clear drag state
-                 dragSourcePoint = null;
-                 dragCurrentPoint = null;
-                 dragShapeType = null;
-                 dragPointIndex = -1;
-                 dragShapeIndex = -1;
-                 
-                 repaint();
              }
-        };
-        
-        addMouseListener(mouseHandler);
-        addMouseMotionListener(mouseHandler);
-        addMouseWheelListener(mouseHandler);
-    }
+         };
+         
+         addMouseListener(mouseHandler);
+         addMouseMotionListener(mouseHandler);
+         addMouseWheelListener(mouseHandler);
+     }
     
     /**
      * Set the sprite file to display.
@@ -236,6 +241,22 @@ public class SpriteCanvasPanel extends JPanel {
     }
     
     /**
+     * Set whether to use saturated colors or semi-transparent colors.
+     * @param saturated true for saturated colors, false for semi-transparent (default)
+     */
+    public void setUseSaturatedColors(final boolean saturated) {
+        this.useSaturatedColors = saturated;
+        repaint();
+    }
+    
+    /**
+     * Get the current color saturation mode.
+     */
+    public boolean isUsingSaturatedColors() {
+        return useSaturatedColors;
+    }
+    
+    /**
      * Set callback for when polygons change.
      */
     public void setOnPolygonsChanged(final Runnable callback) {
@@ -260,7 +281,7 @@ public class SpriteCanvasPanel extends JPanel {
         
         // Draw bounds
         if (spriteFile != null) {
-            drawBounds(g2d);
+            drawHitBox(g2d);
         }
         
         // Draw polygons
@@ -305,9 +326,10 @@ public class SpriteCanvasPanel extends JPanel {
      }
     
     private void drawGrid(final Graphics2D g2d) {
-        g2d.setColor(GRID_COLOR);
+        final int tileSize = spriteFile.tileSize();
         
         final int gridPixelSize = (int)(GRID_CELL_SIZE_PX * scale);
+        final int tilePixelSize = gridPixelSize * tileSize;
         
         // Calculate visible grid bounds
         final int gridStartX = (int)Math.floor(-offsetX / gridPixelSize);
@@ -318,10 +340,12 @@ public class SpriteCanvasPanel extends JPanel {
         // Draw vertical lines
         for (int x = gridStartX; x <= gridEndX; x++) {
             final int screenX = (int)(x * gridPixelSize + offsetX);
-            // Thicker line if x is divisible by 8
-            if (x % 8 == 0) {
+            // Thicker red line if x is divisible by tileSize
+            if (x % tileSize == 0) {
+                g2d.setColor(Color.RED);
                 g2d.setStroke(new BasicStroke(2));
             } else {
+                g2d.setColor(GRID_COLOR);
                 g2d.setStroke(new BasicStroke(1));
             }
             g2d.drawLine(screenX, 0, screenX, getHeight());
@@ -330,27 +354,29 @@ public class SpriteCanvasPanel extends JPanel {
         // Draw horizontal lines
         for (int y = gridStartY; y <= gridEndY; y++) {
             final int screenY = (int)(y * gridPixelSize + offsetY);
-            // Thicker line if y is divisible by 8
-            if (y % 8 == 0) {
+            // Thicker red line if y is divisible by tileSize
+            if (y % tileSize == 0) {
+                g2d.setColor(Color.RED);
                 g2d.setStroke(new BasicStroke(2));
             } else {
+                g2d.setColor(GRID_COLOR);
                 g2d.setStroke(new BasicStroke(1));
             }
             g2d.drawLine(0, screenY, getWidth(), screenY);
         }
     }
     
-    private void drawBounds(final Graphics2D g2d) {
-        final game.sprite.Bounds bounds = spriteFile.bounds();
-        if (bounds == null || (bounds.width() == 0 && bounds.height() == 0)) {
+    private void drawHitBox(final Graphics2D g2d) {
+        final game.sprite.HitBox hitBox = spriteFile.hitBox();
+        if (hitBox == null || (hitBox.width() == 0 && hitBox.height() == 0)) {
             return;
         }
         
-        // Convert bounds from grid coordinates to screen coordinates
-        final Point topLeftScreen = gridToScreen(new Point2D.Double(bounds.x(), bounds.y()));
+        // Convert hitBox from grid coordinates to screen coordinates
+        final Point topLeftScreen = gridToScreen(new Point2D.Double(hitBox.x(), hitBox.y()));
         final Point bottomRightScreen = gridToScreen(new Point2D.Double(
-            bounds.x() + bounds.width(),
-            bounds.y() + bounds.height()
+            hitBox.x() + hitBox.width(),
+            hitBox.y() + hitBox.height()
         ));
         
         final int screenX = topLeftScreen.x;
@@ -358,8 +384,8 @@ public class SpriteCanvasPanel extends JPanel {
         final int screenWidth = bottomRightScreen.x - topLeftScreen.x;
         final int screenHeight = bottomRightScreen.y - topLeftScreen.y;
         
-        // Draw thick dashed yellow rectangle
-        g2d.setColor(BOUNDS_COLOR);
+        // Draw thick dashed white rectangle
+        g2d.setColor(Color.WHITE);
         final float[] dashPattern = {5.0f, 5.0f};  // 5 pixels on, 5 pixels off
         g2d.setStroke(new BasicStroke(3.0f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND, 1.0f, dashPattern, 0.0f));
         g2d.drawRect(screenX, screenY, screenWidth, screenHeight);
@@ -379,7 +405,7 @@ public class SpriteCanvasPanel extends JPanel {
           }
           
           // Set alpha for unselected polygons
-          if (!isSelected) {
+          if (!isSelected && !useSaturatedColors) {
               g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, UNSELECTED_POLYGON_OPACITY));
           }
           
@@ -597,7 +623,9 @@ public class SpriteCanvasPanel extends JPanel {
         final int radiusPixels = (int)(circle.radius() * GRID_CELL_SIZE_PX * scale);
         
         // Set alpha for unselected circles
-        g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, UNSELECTED_POLYGON_OPACITY));
+        if (!useSaturatedColors) {
+            g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, UNSELECTED_POLYGON_OPACITY));
+        }
         
         // Draw fill
         if (circle.fillColor() != null) {
@@ -644,7 +672,9 @@ public class SpriteCanvasPanel extends JPanel {
         final Point controlScreen = gridToScreen(arc.getControlPoint());
         
         // Set alpha for unselected arcs
-        g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, UNSELECTED_POLYGON_OPACITY));
+        if (!useSaturatedColors) {
+            g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, UNSELECTED_POLYGON_OPACITY));
+        }
         
         // Draw fill using quadratic Bezier curve
         if (arc.fillColor() != null) {
@@ -688,7 +718,9 @@ public class SpriteCanvasPanel extends JPanel {
            }
            
            // Set alpha for line segments
-           g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, UNSELECTED_POLYGON_OPACITY));
+           if (!useSaturatedColors) {
+               g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, UNSELECTED_POLYGON_OPACITY));
+           }
            
            // Draw line
            if (lineSegment.lineColor() != null) {
@@ -755,7 +787,9 @@ public class SpriteCanvasPanel extends JPanel {
      
      private void drawCurve(final Graphics2D g2d, final game.sprite.Curve curve) {
          // Set alpha for curves
-         g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, UNSELECTED_POLYGON_OPACITY));
+         if (!useSaturatedColors) {
+             g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, UNSELECTED_POLYGON_OPACITY));
+         }
          
          // Determine curve direction based on control points
          final double dx = curve.end().x - curve.start().x;
@@ -813,8 +847,10 @@ public class SpriteCanvasPanel extends JPanel {
              return;
          }
          
-         // Set alpha for paths
-         g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, UNSELECTED_POLYGON_OPACITY));
+         // Set alpha for paths (only if not using saturated colors)
+         if (!useSaturatedColors) {
+             g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, UNSELECTED_POLYGON_OPACITY));
+         }
          
          // Draw fill (if present)
          if (path.fillColor() != null) {

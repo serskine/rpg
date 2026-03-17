@@ -1,16 +1,16 @@
 package game.sprite;
 
 /**
- * Represents the bounding rectangle for a sprite.
+ * Represents the hit box rectangle for a sprite.
  * Defines the clipping bounds for sprite rendering.
  */
-public record Bounds(
+public record HitBox(
     int x,
     int y,
     int width,
     int height
 ) {
-    public Bounds {
+    public HitBox {
         if (width < 0) {
             throw new IllegalArgumentException("Width cannot be negative");
         }

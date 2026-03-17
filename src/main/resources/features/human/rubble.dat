@@ -1,0 +1,451 @@
+{
+    colors: {
+        white: '#FFFFFF',
+        red: '#FF0000',
+        brown: '#A52A2A',
+        black: '#000000',
+        blue: '#0000FF',
+        grey: '#808080',
+        green: '#00FF00',
+        yellow: '#FFFF00',
+        cyan: '#00FFFF',
+        magenta: '#FF00FF',
+        orange: '#FFA500',
+        purple: '#800080',
+        darkgrey: '#404040',
+        darkbrown: '#654321'
+    },
+    bounds: { x: 0, y: 0, width: 8, height: 8 },
+    tileSize: 8,
+    shapes: [
+        {
+            fillColor: darkgrey,
+            lineColor: black,
+            circle: {
+                center: { x: 0.5, y: 0.5 },
+                radius: 0.5
+            }
+        },
+        {
+            fillColor: darkgrey,
+            lineColor: black,
+            circle: {
+                center: { x: 1.5, y: 1 },
+                radius: 0.5
+            }
+        },
+        {
+            fillColor: darkgrey,
+            lineColor: black,
+            circle: {
+                center: { x: 2.5, y: 0.5 },
+                radius: 0.5
+            }
+        },
+        {
+            fillColor: darkgrey,
+            lineColor: black,
+            circle: {
+                center: { x: 3.5, y: 0.5 },
+                radius: 0.5
+            }
+        },
+        {
+            fillColor: darkgrey,
+            lineColor: black,
+            circle: {
+                center: { x: 4.5, y: 1 },
+                radius: 0.5
+            }
+        },
+        {
+            fillColor: darkgrey,
+            lineColor: black,
+            circle: {
+                center: { x: 5.5, y: 1 },
+                radius: 0.5
+            }
+        },
+        {
+            fillColor: darkgrey,
+            lineColor: black,
+            circle: {
+                center: { x: 6.5, y: 0.5 },
+                radius: 0.5
+            }
+        },
+        {
+            fillColor: darkgrey,
+            lineColor: black,
+            circle: {
+                center: { x: 7.5, y: 0.5 },
+                radius: 0.5
+            }
+        },
+        // Row 2
+        {
+            fillColor: darkgrey,
+            lineColor: black,
+            circle: {
+                center: { x: 0.5, y: 1.5 },
+                radius: 0.5
+            }
+        },
+        {
+            fillColor: darkgrey,
+            lineColor: black,
+            circle: {
+                center: { x: 1.5, y: 2 },
+                radius: 0.5
+            }
+        },
+        {
+            fillColor: darkgrey,
+            lineColor: black,
+            circle: {
+                center: { x: 2.5, y: 1.5 },
+                radius: 0.5
+            }
+        },
+        {
+            fillColor: darkgrey,
+            lineColor: black,
+            circle: {
+                center: { x: 3.5, y: 1.5 },
+                radius: 0.5
+            }
+        },
+        {
+            fillColor: darkgrey,
+            lineColor: black,
+            circle: {
+                center: { x: 4.5, y: 2 },
+                radius: 0.5
+            }
+        },
+        {
+            fillColor: darkgrey,
+            lineColor: black,
+            circle: {
+                center: { x: 5.5, y: 2 },
+                radius: 0.5
+            }
+        },
+        {
+            fillColor: darkgrey,
+            lineColor: black,
+            circle: {
+                center: { x: 6.5, y: 1.5 },
+                radius: 0.5
+            }
+        },
+        {
+            fillColor: darkgrey,
+            lineColor: black,
+            circle: {
+                center: { x: 7.5, y: 1.5 },
+                radius: 0.5
+            }
+        },
+
+        {
+            fillColor: darkgrey,
+            lineColor: black,
+            circle: {
+                center: { x: 0.5, y: 4.5 },
+                radius: 0.5
+            }
+        },
+        {
+            fillColor: darkgrey,
+            lineColor: black,
+            circle: {
+                center: { x: 1.5, y: 3 },
+                radius: 0.5
+            }
+        },
+        {
+            fillColor: darkgrey,
+            lineColor: black,
+            circle: {
+                center: { x: 2.5, y: 3.5 },
+                radius: 0.5
+            }
+        },
+        {
+            fillColor: darkgrey,
+            lineColor: black,
+            circle: {
+                center: { x: 3.5, y: 3.5 },
+                radius: 0.5
+            }
+        },
+        {
+            fillColor: darkgrey,
+            lineColor: black,
+            circle: {
+                center: { x: 4.5, y: 4 },
+                radius: 0.5
+            }
+        },
+        {
+            fillColor: darkgrey,
+            lineColor: black,
+            circle: {
+                center: { x: 5.5, y: 4 },
+                radius: 0.5
+            }
+        },
+        {
+            fillColor: darkgrey,
+            lineColor: black,
+            circle: {
+                center: { x: 6.5, y: 3.5 },
+                radius: 0.5
+            }
+        },
+        {
+            fillColor: darkgrey,
+            lineColor: black,
+            circle: {
+                center: { x: 7.5, y: 4.5 },
+                radius: 0.5
+            }
+        },
+        // Row 2
+        {
+            fillColor: darkgrey,
+            lineColor: black,
+            circle: {
+                center: { x: 0.5, y: 3.5 },
+                radius: 0.5
+            }
+        },
+        {
+            fillColor: darkgrey,
+            lineColor: black,
+            circle: {
+                center: { x: 1.5, y: 3 },
+                radius: 0.5
+            }
+        },
+        {
+            fillColor: darkgrey,
+            lineColor: black,
+            circle: {
+                center: { x: 2.5, y: 2.5 },
+                radius: 0.5
+            }
+        },
+        {
+            fillColor: darkgrey,
+            lineColor: black,
+            circle: {
+                center: { x: 3.5, y: 2.5 },
+                radius: 0.5
+            }
+        },
+        {
+            fillColor: darkgrey,
+            lineColor: black,
+            circle: {
+                center: { x: 4.5, y: 3 },
+                radius: 0.5
+            }
+        },
+        {
+            fillColor: darkgrey,
+            lineColor: black,
+            circle: {
+                center: { x: 5.5, y: 7 },
+                radius: 0.5
+            }
+        },
+        {
+            fillColor: darkgrey,
+            lineColor: black,
+            circle: {
+                center: { x: 6.5, y: 2.5 },
+                radius: 0.5
+            }
+        },
+        {
+            fillColor: darkgrey,
+            lineColor: black,
+            circle: {
+                center: { x: 7.5, y: 7.5 },
+                radius: 0.5
+            }
+        },
+        {
+            fillColor: darkgrey,
+            lineColor: black,
+            circle: {
+                center: { x: 1, y: 6.5 },
+                radius: 0.5
+            }
+        },
+        {
+            fillColor: darkgrey,
+            lineColor: black,
+            circle: {
+                center: { x: 1.5, y: 6 },
+                radius: 0.5
+            }
+        },
+        {
+            fillColor: darkgrey,
+            lineColor: black,
+            circle: {
+                center: { x: 2.5, y: 6.5 },
+                radius: 0.5
+            }
+        },
+        {
+            fillColor: darkgrey,
+            lineColor: black,
+            circle: {
+                center: { x: 3.5, y: 6.5 },
+                radius: 0.5
+            }
+        },
+        {
+            fillColor: darkgrey,
+            lineColor: black,
+            circle: {
+                center: { x: 4.5, y: 6 },
+                radius: 0.5
+            }
+        },
+        {
+            fillColor: darkgrey,
+            lineColor: black,
+            circle: {
+                center: { x: 5.5, y: 6 },
+                radius: 0.5
+            }
+        },
+        {
+            fillColor: darkgrey,
+            lineColor: black,
+            circle: {
+                center: { x: 6.5, y: 7.5 },
+                radius: 0.5
+            }
+        },
+        {
+            fillColor: darkgrey,
+            lineColor: black,
+            circle: {
+                center: { x: 6.5, y: 5.5 },
+                radius: 0.5
+            }
+        },
+        // Row 2
+        {
+            fillColor: darkgrey,
+            lineColor: black,
+            circle: {
+                center: { x: 0.5, y: 5.5 },
+                radius: 0.5
+            }
+        },
+        {
+            fillColor: darkgrey,
+            lineColor: black,
+            circle: {
+                center: { x: 1.5, y: 5 },
+                radius: 0.5
+            }
+        },
+        {
+            fillColor: darkgrey,
+            lineColor: black,
+            circle: {
+                center: { x: 2.5, y: 5.5 },
+                radius: 0.5
+            }
+        },
+        {
+            fillColor: darkgrey,
+            lineColor: black,
+            circle: {
+                center: { x: 3.5, y: 5.5 },
+                radius: 0.5
+            }
+        },
+        {
+            fillColor: darkgrey,
+            lineColor: black,
+            circle: {
+                center: { x: 4.5, y: 5 },
+                radius: 0.5
+            }
+        },
+        {
+            fillColor: darkgrey,
+            lineColor: black,
+            circle: {
+                center: { x: 5.5, y: 5 },
+                radius: 0.5
+            }
+        },
+        {
+            fillColor: darkgrey,
+            lineColor: black,
+            circle: {
+                center: { x: 6.5, y: 6.5 },
+                radius: 0.5
+            }
+        },
+        {
+            fillColor: darkgrey,
+            lineColor: black,
+            circle: {
+                center: { x: 7.5, y: 6.5 },
+                radius: 0.5
+            }
+        },
+       {
+            fillColor: darkgrey,
+            lineColor: black,
+            circle: {
+                center: { x: 1.5, y: 7.5 },
+                radius: 0.5
+            }
+        },
+       {
+            fillColor: darkgrey,
+            lineColor: black,
+            circle: {
+                center: { x: 2.5, y: 7.5 },
+                radius: 0.5
+            }
+        },
+       {
+            fillColor: darkgrey,
+            lineColor: black,
+            circle: {
+                center: { x: 3.5, y: 4.5 },
+                radius: 0.5
+            }
+        },
+       {
+            fillColor: darkgrey,
+            lineColor: black,
+            circle: {
+                center: { x: 2.5, y: 4.5 },
+                radius: 0.5
+            }
+        },
+       {
+            fillColor: darkgrey,
+            lineColor: black,
+            circle: {
+                center: { x: 1.5, y: 4 },
+                radius: 0.5
+            }
+        },
+
+    ]
+}

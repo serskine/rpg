@@ -31,8 +31,11 @@ public class SpriteDataParser {
                 return SpriteValidationResult.failure("Could not find colors object", 1);
             }
             
-            // Extract bounds (optional)
-            final Bounds bounds = parseBounds(content);
+            // Extract hitBox (optional)
+            final HitBox hitBox = parseHitBox(content);
+            
+            // Extract tileSize (optional, defaults to 8)
+            final int tileSize = parseTileSize(content);
             
             // Extract shapes array (supports polygons, circles, and arcs)
             final List<Shape> shapes = parseShapes(content, colors);
@@ -40,9 +43,9 @@ public class SpriteDataParser {
             // Auto-add missing color definitions
             addMissingColorDefinitions(colors, shapes);
             
-            final SpriteFile spriteFile = bounds != null
-                ? new SpriteFile(colors, shapes, bounds)
-                : new SpriteFile(colors, shapes);
+            final SpriteFile spriteFile = hitBox != null
+                ? new SpriteFile(colors, shapes, hitBox, tileSize)
+                : new SpriteFile(colors, shapes, new HitBox(0, 0, 0, 0), tileSize);
             return SpriteValidationResult.success(spriteFile);
             
         } catch (final Exception e) {
@@ -98,10 +101,10 @@ public class SpriteDataParser {
     }
     
     /**
-     * Extract the bounds object from the file content (optional).
+     * Extract the hitBox object from the file content (optional).
      */
-    private static Bounds parseBounds(final String content) {
-        final Pattern pattern = Pattern.compile("bounds\\s*:\\s*\\{\\s*x\\s*:\\s*(\\d+)\\s*,\\s*y\\s*:\\s*(\\d+)\\s*,\\s*width\\s*:\\s*(\\d+)\\s*,\\s*height\\s*:\\s*(\\d+)\\s*\\}");
+    private static HitBox parseHitBox(final String content) {
+        final Pattern pattern = Pattern.compile("hitBox\\s*:\\s*\\{\\s*x\\s*:\\s*(\\d+)\\s*,\\s*y\\s*:\\s*(\\d+)\\s*,\\s*width\\s*:\\s*(\\d+)\\s*,\\s*height\\s*:\\s*(\\d+)\\s*\\}");
         final Matcher matcher = pattern.matcher(content);
         if (matcher.find()) {
             try {
@@ -109,12 +112,28 @@ public class SpriteDataParser {
                 final int y = Integer.parseInt(matcher.group(2));
                 final int width = Integer.parseInt(matcher.group(3));
                 final int height = Integer.parseInt(matcher.group(4));
-                return new Bounds(x, y, width, height);
+                return new HitBox(x, y, width, height);
             } catch (final NumberFormatException e) {
                 return null;
             }
         }
         return null;
+    }
+    
+    /**
+     * Extract the tileSize property from the file content (optional, defaults to 8).
+     */
+    private static int parseTileSize(final String content) {
+        final Pattern pattern = Pattern.compile("tileSize\\s*:\\s*(\\d+)");
+        final Matcher matcher = pattern.matcher(content);
+        if (matcher.find()) {
+            try {
+                return Integer.parseInt(matcher.group(1));
+            } catch (final NumberFormatException e) {
+                return 8; // default
+            }
+        }
+        return 8; // default
     }
     
     /**
@@ -298,12 +317,12 @@ public class SpriteDataParser {
          final Point2D.Double controlPoint2 = extractPoint(curveText, "controlPoint2");
          final Point2D.Double end = extractPoint(curveText, "end");
          
-         if (start == null || controlPoint1 == null || controlPoint2 == null || end == null) {
-             return null;
-         }
-         
-         return new Curve(fillColor, lineColor, start, controlPoint1, controlPoint2, end);
+          if (start == null || controlPoint1 == null || controlPoint2 == null || end == null) {
+         return null;
      }
+     
+     return new Curve(fillColor, lineColor, start, controlPoint1, controlPoint2, end);
+      }
      
      /**
       * Parse a path shape (sequence of points forming a polyline).
@@ -553,11 +572,11 @@ public class SpriteDataParser {
         }
         sb.append("    },\n");
         
-        // Write bounds
-        final Bounds bounds = spriteFile.bounds();
-        if (bounds != null) {
-            sb.append("    bounds: {x: ").append(bounds.x()).append(", y: ").append(bounds.y());
-            sb.append(", width: ").append(bounds.width()).append(", height: ").append(bounds.height()).append("},\n");
+        // Write hitBox
+        final HitBox hitBox = spriteFile.hitBox();
+        if (hitBox != null) {
+            sb.append("    hitBox: {x: ").append(hitBox.x()).append(", y: ").append(hitBox.y());
+            sb.append(", width: ").append(hitBox.width()).append(", height: ").append(hitBox.height()).append("},\n");
         }
         
         // Write shapes array (polygons, circles, arcs, line segments)

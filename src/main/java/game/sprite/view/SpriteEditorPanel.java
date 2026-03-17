@@ -41,6 +41,7 @@ public class SpriteEditorPanel extends JPanel {
     private JButton increaseFontButton;
     private JButton decreaseFontButton;
     private JLabel fontSizeLabel;
+    private JCheckBox saturatedColorsCheckbox;
     
     private SpriteFile currentSpriteFile;
     private List<Polygon> currentPolygons = new ArrayList<>();
@@ -175,6 +176,14 @@ public class SpriteEditorPanel extends JPanel {
         increaseFontButton.addActionListener(e -> increaseFontSize());
         panel.add(increaseFontButton);
         
+        panel.add(new JSeparator(SwingConstants.VERTICAL));
+        
+        // Saturated colors toggle
+        saturatedColorsCheckbox = new JCheckBox("Saturated Colors");
+        saturatedColorsCheckbox.setFont(new Font("Dialog", Font.PLAIN, 13));
+        saturatedColorsCheckbox.addActionListener(e -> onSaturatedColorsToggled());
+        panel.add(saturatedColorsCheckbox);
+        
         return panel;
     }
     
@@ -198,9 +207,6 @@ public class SpriteEditorPanel extends JPanel {
                 onTextEditorChanged();
             }
         });
-        
-        // Add caret listener to track which polygon the cursor is in
-        editor.addCaretListener(e -> onTextEditorCaretMoved(e.getDot()));
         
         // Add key listener to convert tab key to 4 spaces
         editor.addKeyListener(new java.awt.event.KeyAdapter() {
@@ -286,6 +292,11 @@ public class SpriteEditorPanel extends JPanel {
             currentFontSize--;
             updateTextEditorFont();
         }
+    }
+    
+    private void onSaturatedColorsToggled() {
+        final boolean useSaturated = saturatedColorsCheckbox.isSelected();
+        canvasPanel.setUseSaturatedColors(useSaturated);
     }
     
     private void updateTextEditorFont() {
@@ -443,8 +454,6 @@ public class SpriteEditorPanel extends JPanel {
         
         if (!result.isValid()) {
             updateValidationStatus(false, result.getErrorMessage());
-            // Even with invalid text, try to highlight the polygon at cursor position
-            updatePolygonSelectionFromCaret();
             return;
         }
         
@@ -457,122 +466,12 @@ public class SpriteEditorPanel extends JPanel {
         isCanvasUpdating = false;
         
         updateValidationStatus(true, null);
-        
-        // Update selection based on current cursor position
-        updatePolygonSelectionFromCaret();
     }
     
     /**
      * Called when the caret position changes in the text editor.
      * Detects which polygon the cursor is in and selects it in the canvas.
      */
-    private void onTextEditorCaretMoved(final int caretPos) {
-        updatePolygonSelectionFromCaret();
-    }
-    
-    /**
-     * Update polygon selection based on current caret position.
-     * Syncs the canvas selection to match which polygon the cursor is in.
-     */
-    private void updatePolygonSelectionFromCaret() {
-        if (isTextEditorUpdating || isCanvasUpdating) {
-            return;
-        }
-        
-        final String editorText = textEditor.getText();
-        final int caretPos = textEditor.getCaretPosition();
-        final int polygonIndex = findPolygonIndexAtPosition(editorText, caretPos);
-        
-        // Update canvas selection based on cursor position
-        if (polygonIndex >= 0 && polygonIndex < currentPolygons.size()) {
-            if (polygonIndex != selectedPolygonIndex) {
-                selectedPolygonIndex = polygonIndex;
-                isCanvasUpdating = true;
-                canvasPanel.selectPolygon(polygonIndex);
-                isCanvasUpdating = false;
-            }
-        } else if (selectedPolygonIndex >= 0) {
-            // Cursor is not in any polygon, clear selection
-            selectedPolygonIndex = -1;
-            isCanvasUpdating = true;
-            canvasPanel.selectPolygon(-1);
-            isCanvasUpdating = false;
-        }
-    }
-    
-    /**
-     * Find which polygon contains the given character position in the text.
-     */
-    private int findPolygonIndexAtPosition(final String text, final int position) {
-        // Find the opening bracket of the polygons array
-        // It comes after "colors:" and its closing brace
-        final int colorsStart = text.indexOf("colors:");
-        if (colorsStart == -1) {
-            return -1;
-        }
-        
-        // Find the colors closing brace
-        int colorsOpenBrace = text.indexOf("{", colorsStart);
-        if (colorsOpenBrace == -1) {
-            return -1;
-        }
-        
-        int braceCount = 0;
-        int colorsCloseBrace = -1;
-        for (int i = colorsOpenBrace; i < text.length(); i++) {
-            if (text.charAt(i) == '{') {
-                braceCount++;
-            } else if (text.charAt(i) == '}') {
-                braceCount--;
-                if (braceCount == 0) {
-                    colorsCloseBrace = i;
-                    break;
-                }
-            }
-        }
-        
-        if (colorsCloseBrace == -1) {
-            return -1;
-        }
-        
-        // Find the opening bracket of the polygons array (after colors object)
-        final int arrayStart = text.indexOf("[", colorsCloseBrace);
-        if (arrayStart == -1 || position < arrayStart) {
-            return -1;
-        }
-        
-        // Count braces to find which polygon this position is in
-        int polygonBraceCount = 0;
-        int currentPolygon = -1;
-        boolean inPolygon = false;
-        
-        for (int i = arrayStart; i < text.length() && i <= position; i++) {
-            final char c = text.charAt(i);
-            
-            if (c == '{') {
-                if (polygonBraceCount == 0) {
-                    // Starting a new polygon
-                    currentPolygon++;
-                    inPolygon = true;
-                }
-                polygonBraceCount++;
-            } else if (c == '}') {
-                polygonBraceCount--;
-                if (polygonBraceCount == 0) {
-                    // Closed a polygon
-                    inPolygon = false;
-                    if (i < position) {
-                        // Position is after this polygon, so we're not in any polygon
-                        currentPolygon = -1;
-                    }
-                }
-            }
-        }
-        
-        // If we're still inside braces, return the current polygon
-        return inPolygon && currentPolygon >= 0 ? currentPolygon : -1;
-    }
-
     
     private void updateTextEditorFromCanvas() {
         if (isCanvasUpdating) {

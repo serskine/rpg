@@ -7,12 +7,13 @@ import java.util.stream.Collectors;
 
 /**
  * Represents the contents of a sprite data file.
- * Contains a color palette, a list of shapes (polygons, circles, arcs, curves, paths), and optional bounds.
+ * Contains a color palette, a list of shapes (polygons, circles, arcs, curves, paths), optional hit box, and tileSize.
  */
 public record SpriteFile(
     Map<String, String> colors,
     List<Shape> shapes,
-    Bounds bounds
+    HitBox hitBox,
+    int tileSize
 ) {
     public SpriteFile {
         Objects.requireNonNull(colors, "Colors map cannot be null");
@@ -22,10 +23,17 @@ public record SpriteFile(
     }
     
     /**
-     * Create a SpriteFile with default bounds (0, 0, 0, 0).
+     * Create a SpriteFile with default hit box (0, 0, 0, 0) and tileSize of 8.
      */
     public SpriteFile(final Map<String, String> colors, final List<Shape> shapes) {
-        this(colors, shapes, new Bounds(0, 0, 0, 0));
+        this(colors, shapes, new HitBox(0, 0, 0, 0), 8);
+    }
+    
+    /**
+     * Create a SpriteFile with specified hit box and default tileSize of 8.
+     */
+    public SpriteFile(final Map<String, String> colors, final List<Shape> shapes, final HitBox hitBox) {
+        this(colors, shapes, hitBox, 8);
     }
     
     /**
