@@ -55,71 +55,74 @@ public class SpriteEditorPanel extends JPanel {
         this(null);
     }
 
-    public SpriteEditorPanel(String workingDirectory) {
-        setLayout(new BorderLayout());
-        
-        // Set working directory if provided
-        if (workingDirectory != null && !workingDirectory.isEmpty()) {
-            lastOpenedDirectory = new File(workingDirectory);
-            if (!lastOpenedDirectory.exists()) {
-                Logger.warn("Working directory does not exist: " + workingDirectory);
-                lastOpenedDirectory = null;
-            }
-        }
-        
-        // Set larger fonts for UI components
-        UIManager.put("Button.font", new Font("Dialog", Font.PLAIN, 13));
-        UIManager.put("Label.font", new Font("Dialog", Font.PLAIN, 13));
-        UIManager.put("Menu.font", new Font("Dialog", Font.PLAIN, 13));
-        
-        // Toolbar
-        final JPanel toolbar = createToolbar();
-        add(toolbar, BorderLayout.NORTH);
-        
-        // Main content: split pane with text editor (left 50%) and canvas (right 50%)
-        textEditor = createTextEditor();
-        
-        // Wrap text editor with scrollbars
-        final JScrollPane textScrollPane = new JScrollPane(textEditor);
-        textScrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED);
-        textScrollPane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
-        
-        final JPanel textWrapper = new JPanel(new BorderLayout());
-        textWrapper.add(textScrollPane, BorderLayout.CENTER);
-        textWrapper.setBorder(new CompoundBorder(
-            new LineBorder(Color.BLACK, 1),
-            new EmptyBorder(5, 5, 5, 5)
-        ));
-        
-        canvasPanel = new SpriteCanvasPanel();
-        
-        final JPanel canvasWrapper = new JPanel(new BorderLayout());
-        canvasWrapper.add(canvasPanel, BorderLayout.CENTER);
-        canvasWrapper.setBorder(new CompoundBorder(
-            new LineBorder(Color.GREEN, 3),
-            new EmptyBorder(5, 5, 5, 5)
-        ));
-        
-        final JSplitPane mainSplit = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, textWrapper, canvasWrapper);
-        mainSplit.setDividerLocation(0.5);  // 50/50 split
-        mainSplit.setResizeWeight(0.5);     // Grow evenly
-        add(mainSplit, BorderLayout.CENTER);
-        
-        // Bottom: Status bar
-        statusLabel = new JLabel("Ready");
-        statusLabel.setFont(new Font("Dialog", Font.PLAIN, 13));
-        statusLabel.setBorder(new EmptyBorder(5, 5, 5, 5));
-        add(statusLabel, BorderLayout.SOUTH);
-        
-        // Setup interactions
-        setupInteractions();
-        
-        // Defer keyboard shortcuts setup until we're part of a frame
-        SwingUtilities.invokeLater(this::setupKeyboardShortcuts);
-        
-        // Initial state
-        initializeEmpty();
-    }
+     public SpriteEditorPanel(String workingDirectory) {
+         setLayout(new BorderLayout());
+         
+         // Set working directory if provided
+         if (workingDirectory != null && !workingDirectory.isEmpty()) {
+             lastOpenedDirectory = new File(workingDirectory);
+             if (!lastOpenedDirectory.exists()) {
+                 Logger.warn("Working directory does not exist: " + workingDirectory);
+                 lastOpenedDirectory = null;
+             }
+         }
+         
+         // Set larger fonts for UI components
+         UIManager.put("Button.font", new Font("Dialog", Font.PLAIN, 13));
+         UIManager.put("Label.font", new Font("Dialog", Font.PLAIN, 13));
+         UIManager.put("Menu.font", new Font("Dialog", Font.PLAIN, 13));
+         
+         // Toolbar
+         final JPanel toolbar = createToolbar();
+         add(toolbar, BorderLayout.NORTH);
+         
+         // Main content: split pane with text editor (left 50%) and canvas (right 50%)
+         textEditor = createTextEditor();
+         
+         // Wrap text editor with scrollbars
+         final JScrollPane textScrollPane = new JScrollPane(textEditor);
+         textScrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED);
+         textScrollPane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
+         
+         final JPanel textWrapper = new JPanel(new BorderLayout());
+         textWrapper.add(textScrollPane, BorderLayout.CENTER);
+         textWrapper.setBorder(new CompoundBorder(
+             new LineBorder(Color.BLACK, 1),
+             new EmptyBorder(5, 5, 5, 5)
+         ));
+         
+         canvasPanel = new SpriteCanvasPanel();
+         
+         final JPanel canvasWrapper = new JPanel(new BorderLayout());
+         canvasWrapper.add(canvasPanel, BorderLayout.CENTER);
+         canvasWrapper.setBorder(new CompoundBorder(
+             new LineBorder(Color.GREEN, 3),
+             new EmptyBorder(5, 5, 5, 5)
+         ));
+         
+         final JSplitPane mainSplit = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, textWrapper, canvasWrapper);
+         mainSplit.setDividerLocation(0.5);  // 50/50 split
+         mainSplit.setResizeWeight(0.5);     // Grow evenly
+         add(mainSplit, BorderLayout.CENTER);
+         
+         // Bottom: Status bar
+         statusLabel = new JLabel("Ready");
+         statusLabel.setFont(new Font("Dialog", Font.PLAIN, 13));
+         statusLabel.setBorder(new EmptyBorder(5, 5, 5, 5));
+         add(statusLabel, BorderLayout.SOUTH);
+         
+         // Setup interactions
+         setupInteractions();
+         
+         // Defer keyboard shortcuts setup until we're part of a frame
+         SwingUtilities.invokeLater(this::setupKeyboardShortcuts);
+         
+         // Initial state
+         initializeEmpty();
+         
+         // Load test.dat by default
+         SwingUtilities.invokeLater(this::loadTestDatByDefault);
+     }
     
     private JPanel createToolbar() {
         final JPanel panel = new JPanel();
@@ -615,22 +618,39 @@ public class SpriteEditorPanel extends JPanel {
         }
     }
      
-    private int findPolygonEndPosition(final String text, final int startPos) {
-        int braceCount = 0;
-        
-        for (int i = startPos; i < text.length(); i++) {
-            final char c = text.charAt(i);
-            
-            if (c == '{') {
-                braceCount++;
-            } else if (c == '}') {
-                braceCount--;
-                if (braceCount == 0) {
-                    return i + 1;
-                }
-            }
-        }
-        
-        return -1;
-    }
+     private int findPolygonEndPosition(final String text, final int startPos) {
+         int braceCount = 0;
+         
+         for (int i = startPos; i < text.length(); i++) {
+             final char c = text.charAt(i);
+             
+             if (c == '{') {
+                 braceCount++;
+             } else if (c == '}') {
+                 braceCount--;
+                 if (braceCount == 0) {
+                     return i + 1;
+                 }
+             }
+         }
+         
+         return -1;
+     }
+     
+     private void loadTestDatByDefault() {
+         try {
+             // Load test.dat from resources
+             final String testDatPath = "src/main/resources/features/human/test.dat";
+             final File testDatFile = new File(testDatPath);
+             
+             if (testDatFile.exists()) {
+                 loadFile(testDatFile);
+                 statusLabel.setText("Loaded default test file: test.dat");
+             } else {
+                 Logger.warn("Default test.dat file not found at: " + testDatPath);
+             }
+         } catch (final Exception e) {
+             Logger.warn("Failed to load default test.dat: " + e.getMessage());
+         }
+     }
 }

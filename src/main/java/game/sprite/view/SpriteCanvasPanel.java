@@ -387,96 +387,164 @@ public class SpriteCanvasPanel extends JPanel {
           final java.awt.geom.Path2D.Double path = new java.awt.geom.Path2D.Double();
           final List<PathPoint> pathPoints = polygon.path();
           
-          for (int i = 0; i < pathPoints.size(); i++) {
-              final PathPoint currentPoint = pathPoints.get(i);
-              final Point screenPoint = gridToScreen(new Point2D.Double(currentPoint.x(), currentPoint.y()));
-              
-              if (i == 0) {
-                  path.moveTo(screenPoint.x, screenPoint.y);
-              } else {
-                  final PathPoint prevPoint = pathPoints.get(i - 1);
-                  final Point prevScreen = gridToScreen(new Point2D.Double(prevPoint.x(), prevPoint.y()));
-                  
-                  // Handle segment types
-                  if (currentPoint.type() == PathSegmentType.NONE) {
-                      // NONE: skip rendering line, just move to next point
-                      path.moveTo(screenPoint.x, screenPoint.y);
-                  } else if (currentPoint.type() == PathSegmentType.LEFT || currentPoint.type() == PathSegmentType.RIGHT) {
-                      // Curve: use corner of bounding rectangle as ellipse center
-                      final double x1 = prevScreen.x;
-                      final double y1 = prevScreen.y;
-                      final double x2 = screenPoint.x;
-                      final double y2 = screenPoint.y;
-                      
-                      // Width and height of the bounding rectangle
-                      final double width = Math.abs(x2 - x1);
-                      final double height = Math.abs(y2 - y1);
-                      
-                      // Ellipse dimensions: double the bounding rectangle
-                      final double ellipseWidth = width * 2.0;
-                      final double ellipseHeight = height * 2.0;
-                      
-                      // Determine ellipse center and bounding box based on curve type
-                      double ellipseCenterX, ellipseCenterY;
-                      double ellipseBBoxX, ellipseBBoxY;
-                      
-                      if (currentPoint.type() == PathSegmentType.RIGHT) {
-                          // For RIGHT curve, ellipse center is at the far corner (bottom-right or equivalent)
-                          ellipseCenterX = Math.max(x1, x2);
-                          ellipseCenterY = Math.max(y1, y2);
-                          ellipseBBoxX = Math.min(x1, x2);
-                          ellipseBBoxY = Math.min(y1, y2);
-                      } else {
-                          // For LEFT curve, ellipse center is at the opposite corner (top-left or equivalent)
-                          ellipseCenterX = Math.min(x1, x2);
-                          ellipseCenterY = Math.min(y1, y2);
-                          ellipseBBoxX = Math.min(x1, x2) - width;
-                          ellipseBBoxY = Math.min(y1, y2) - height;
-                      }
-                      
-                      // Calculate angles from ellipse center to both endpoints
-                      double startAngle = Math.toDegrees(Math.atan2(y1 - ellipseCenterY, x1 - ellipseCenterX));
-                      double endAngle = Math.toDegrees(Math.atan2(y2 - ellipseCenterY, x2 - ellipseCenterX));
-                      
-                      // Calculate arc extent
-                      double arcExtent = endAngle - startAngle;
-                      
-                      // Normalize angle difference to be in range [-180, 180]
-                      while (arcExtent > 180) {
-                          arcExtent -= 360;
-                      }
-                      while (arcExtent < -180) {
-                          arcExtent += 360;
-                      }
-                      
-                      // Ensure we take the short arc
-                      if (Math.abs(arcExtent) > 180) {
-                          if (arcExtent > 0) {
-                              arcExtent -= 360;
-                          } else {
-                              arcExtent += 360;
-                          }
-                      }
-                      
-                      // Use Arc2D to draw the curve
-                      final java.awt.geom.Arc2D.Double arc = new java.awt.geom.Arc2D.Double(
-                          ellipseBBoxX, ellipseBBoxY, ellipseWidth, ellipseHeight,
-                          startAngle, arcExtent, java.awt.geom.Arc2D.OPEN
-                      );
-                      
-                      // Append arc to path
-                      path.append(arc, true);
-                  } else {
-                      // STRAIGHT: regular line (default)
-                      path.lineTo(screenPoint.x, screenPoint.y);
-                  }
-              }
-          }
-          
-          // Close path if it's a closed polygon
-          if (!polygon.isOpen()) {
-              path.closePath();
-          }
+           for (int i = 0; i < pathPoints.size(); i++) {
+               final PathPoint currentPoint = pathPoints.get(i);
+               final Point screenPoint = gridToScreen(new Point2D.Double(currentPoint.x(), currentPoint.y()));
+               
+               if (i == 0) {
+                   path.moveTo(screenPoint.x, screenPoint.y);
+               } else {
+                   final PathPoint prevPoint = pathPoints.get(i - 1);
+                   final Point prevScreen = gridToScreen(new Point2D.Double(prevPoint.x(), prevPoint.y()));
+                   
+                   // Determine curve type: use the destination point's type (currentPoint)
+                   // This indicates the curve type for the segment coming INTO currentPoint
+                   final PathSegmentType segmentType = currentPoint.type();
+                   
+                   // Handle segment types
+                   if (segmentType == PathSegmentType.NONE) {
+                       // NONE: skip rendering line, just move to next point
+                       path.moveTo(screenPoint.x, screenPoint.y);
+                   } else if (segmentType == PathSegmentType.LEFT || segmentType == PathSegmentType.RIGHT) {
+                       // Curve: calculate arc using screen coordinates for proper scaling
+                       final double x1 = prevScreen.x;
+                       final double y1 = prevScreen.y;
+                       final double x2 = screenPoint.x;
+                       final double y2 = screenPoint.y;
+                       
+                       // Calculate deltas in screen coordinates
+                       final double screenDx = x2 - x1;
+                       final double screenDy = y2 - y1;
+                       
+                        // Map curve types to counterClockwise flag
+                        // RIGHT = counterClockwise (true), LEFT = clockwise (false)
+                        final boolean counterClockwise = (segmentType == PathSegmentType.RIGHT);
+                       
+                        // Calculate control point based on curve type and direction
+                        double controlX, controlY;
+                        
+                        if (screenDx < 0D) {
+                            if (screenDy < 0D) {
+                                // NW
+                                controlX = counterClockwise ? x1 : x2;
+                                controlY = counterClockwise ? y2 : y1;
+                            } else {
+                                // SW
+                                controlX = counterClockwise ? x2 : x1;
+                                controlY = counterClockwise ? y1 : y2;
+                            }
+                        } else {
+                            if (screenDy < 0D) {
+                                // NE
+                                controlX = counterClockwise ? x2 : x1;
+                                controlY = counterClockwise ? y1 : y2;
+                            } else {
+                                // SE
+                                controlX = counterClockwise ? x1 : x2;
+                                controlY = counterClockwise ? y2 : y1;
+                            }
+                        }
+                       
+                       // Ellipse dimensions: 2 * |dx| and 2 * |dy|
+                       final double eW = Math.abs(screenDx) * 2.0;
+                       final double eH = Math.abs(screenDy) * 2.0;
+                       
+                       // Bounding box for the ellipse (top-left corner)
+                       final double eBBoxX = controlX - Math.abs(screenDx);
+                       final double eBBoxY = controlY - Math.abs(screenDy);
+                       
+                       // Determine start angle based on direction
+                       final int sweepDeg = 90;
+                       int startAngle;
+                       if (screenDx > 0D) {
+                           if (screenDy < 0D) {
+                               // NE direction
+                               startAngle = counterClockwise ? 0 : 180;
+                           } else {
+                               // SE direction
+                               startAngle = counterClockwise ? 90 : 270;
+                           }
+                       } else {
+                           if (screenDy < 0D) {
+                               // NW direction
+                               startAngle = counterClockwise ? 270 : 90;
+                           } else {
+                               // SW direction
+                               startAngle = counterClockwise ? 180 : 0;
+                           }
+                       }
+                       
+                       // Create an arc path manually using quadratic curves for reliability
+                       // Calculate the arc as a quadratic Bézier curve with the control point
+                       path.quadTo(controlX, controlY, screenPoint.x, screenPoint.y);
+                   } else {
+                       // STRAIGHT: regular line (default)
+                       path.lineTo(screenPoint.x, screenPoint.y);
+                   }
+               }
+           }
+           
+           // Close path if it's a closed polygon
+           if (!polygon.isOpen()) {
+               // Handle closing segment: from last point back to first point
+               // The curve type for the closing segment comes from the first point
+               final PathPoint firstPoint = pathPoints.get(0);
+               final PathPoint lastPoint = pathPoints.get(pathPoints.size() - 1);
+               final Point firstScreen = gridToScreen(new Point2D.Double(firstPoint.x(), firstPoint.y()));
+               final Point lastScreen = gridToScreen(new Point2D.Double(lastPoint.x(), lastPoint.y()));
+               
+               final PathSegmentType closingSegmentType = firstPoint.type();
+               
+               if (closingSegmentType == PathSegmentType.NONE) {
+                   // NONE: don't render closing line
+                   // (path stays open, don't close it)
+               } else if (closingSegmentType == PathSegmentType.LEFT || closingSegmentType == PathSegmentType.RIGHT) {
+                   // Curved closing segment
+                   final double x1 = lastScreen.x;
+                   final double y1 = lastScreen.y;
+                   final double x2 = firstScreen.x;
+                   final double y2 = firstScreen.y;
+                   
+                   // Calculate deltas in screen coordinates
+                   final double screenDx = x2 - x1;
+                   final double screenDy = y2 - y1;
+                   
+                    // Map curve types to counterClockwise flag
+                    // RIGHT = counterClockwise (true), LEFT = clockwise (false)
+                    final boolean counterClockwise = (closingSegmentType == PathSegmentType.RIGHT);
+                   
+                    // Calculate control point based on curve type and direction
+                    double controlX, controlY;
+                    
+                    if (screenDx < 0D) {
+                        if (screenDy < 0D) {
+                            // NW
+                            controlX = counterClockwise ? x1 : x2;
+                            controlY = counterClockwise ? y2 : y1;
+                        } else {
+                            // SW
+                            controlX = counterClockwise ? x2 : x1;
+                            controlY = counterClockwise ? y1 : y2;
+                        }
+                    } else {
+                        if (screenDy < 0D) {
+                            // NE
+                            controlX = counterClockwise ? x2 : x1;
+                            controlY = counterClockwise ? y1 : y2;
+                        } else {
+                            // SE
+                            controlX = counterClockwise ? x1 : x2;
+                            controlY = counterClockwise ? y2 : y1;
+                        }
+                    }
+                   
+                   // Create curved closing segment
+                   path.quadTo(controlX, controlY, firstScreen.x, firstScreen.y);
+               } else {
+                   // STRAIGHT: regular line (default)
+                   path.closePath();
+               }
+           }
           
           // Draw fill (only for closed polygons)
           if (!polygon.isOpen() && polygon.fillColor() != null) {
@@ -614,75 +682,70 @@ public class SpriteCanvasPanel extends JPanel {
         }
     }
     
-     private void drawLineSegment(final Graphics2D g2d, final LineSegment lineSegment) {
-         if (lineSegment.points().isEmpty()) {
-             return;
-         }
-         
-         // Set alpha for line segments
-         g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, UNSELECTED_POLYGON_OPACITY));
-         
-         // Draw line
-         if (lineSegment.lineColor() != null) {
-             final Color lineColor = colorCache.get(lineSegment.lineColor());
-             if (lineColor != null) {
-                 g2d.setColor(lineColor);
-                 g2d.setStroke(new BasicStroke(2));
-                 
-                 final java.awt.geom.Path2D.Double path = new java.awt.geom.Path2D.Double();
-                 
-                 // Build path from line points
-                 final java.util.List<game.sprite.LinePoint> points = lineSegment.points();
-                 for (int i = 0; i < points.size(); i++) {
-                     final game.sprite.LinePoint linePoint = points.get(i);
-                     final Point screenPoint = gridToScreen(linePoint.point());
-                     
-                     if (i == 0) {
-                         path.moveTo(screenPoint.x, screenPoint.y);
-                     } else {
-                         final game.sprite.LinePoint prevPoint = points.get(i - 1);
-                         final Point prevScreen = gridToScreen(prevPoint.point());
-                         
-                         // Handle curve types
-                         if (linePoint.curve() == game.sprite.CurveType.NONE) {
-                             path.lineTo(screenPoint.x, screenPoint.y);
-                         } else if (linePoint.curve() == game.sprite.CurveType.LEFT) {
-                             // Left curve: control point is to the left
-                             final int midX = (prevScreen.x + screenPoint.x) / 2;
-                             final int midY = (prevScreen.y + screenPoint.y) / 2;
-                             final int dx = screenPoint.x - prevScreen.x;
-                             final int dy = screenPoint.y - prevScreen.y;
-                             final int controlX = midX - dy / 2;
-                             final int controlY = midY + dx / 2;
-                             path.quadTo(controlX, controlY, screenPoint.x, screenPoint.y);
-                         } else if (linePoint.curve() == game.sprite.CurveType.RIGHT) {
-                             // Right curve: control point is to the right
-                             final int midX = (prevScreen.x + screenPoint.x) / 2;
-                             final int midY = (prevScreen.y + screenPoint.y) / 2;
-                             final int dx = screenPoint.x - prevScreen.x;
-                             final int dy = screenPoint.y - prevScreen.y;
-                             final int controlX = midX + dy / 2;
-                             final int controlY = midY - dx / 2;
-                             path.quadTo(controlX, controlY, screenPoint.x, screenPoint.y);
-                         }
-                     }
-                 }
-                 
-                 g2d.draw(path);
-             }
-         }
-         
-         // Reset composite
-         g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 1.0f));
-         
-         // Draw points
-         g2d.setColor(POINT_COLOR);
-         for (final game.sprite.LinePoint linePoint : lineSegment.points()) {
-             final Point screenPoint = gridToScreen(linePoint.point());
-             final int radius = 4;
-             g2d.fillOval(screenPoint.x - radius, screenPoint.y - radius, radius * 2, radius * 2);
-         }
-     }
+      private void drawLineSegment(final Graphics2D g2d, final LineSegment lineSegment) {
+           if (lineSegment.points().isEmpty()) {
+               return;
+           }
+           
+           // Set alpha for line segments
+           g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, UNSELECTED_POLYGON_OPACITY));
+           
+           // Draw line
+           if (lineSegment.lineColor() != null) {
+               final Color lineColor = colorCache.get(lineSegment.lineColor());
+               if (lineColor != null) {
+                   g2d.setColor(lineColor);
+                   g2d.setStroke(new BasicStroke(2));
+                   
+                   // Build path from line points
+                   final java.util.List<game.sprite.LinePoint> points = lineSegment.points();
+                   for (int i = 0; i < points.size(); i++) {
+                       final game.sprite.LinePoint linePoint = points.get(i);
+                       
+                       if (i == 0) {
+                           // First point - just draw it if it has a curve
+                           if (linePoint.curve() != game.sprite.CurveType.NONE) {
+                               final Point screenPoint = gridToScreen(linePoint.point());
+                               g2d.fillOval(screenPoint.x - 2, screenPoint.y - 2, 4, 4);
+                           }
+                       } else {
+                           final game.sprite.LinePoint prevPoint = points.get(i - 1);
+                           
+                           // Handle curve types
+                           if (linePoint.curve() == game.sprite.CurveType.NONE) {
+                               // Straight line
+                               final Point prevScreen = gridToScreen(prevPoint.point());
+                               final Point currScreen = gridToScreen(linePoint.point());
+                               g2d.drawLine(prevScreen.x, prevScreen.y, currScreen.x, currScreen.y);
+                           } else if (linePoint.curve() == game.sprite.CurveType.LEFT) {
+                               // Left curve: create Arc with counterClockwise=false
+                               final java.awt.geom.Point2D.Double prevGridPoint = prevPoint.point();
+                               final java.awt.geom.Point2D.Double currGridPoint = linePoint.point();
+                               final game.sprite.Arc arc = new game.sprite.Arc(null, lineSegment.lineColor(), prevGridPoint, currGridPoint, false);
+                               arc.renderLines(g2d);
+                           } else if (linePoint.curve() == game.sprite.CurveType.RIGHT) {
+                               // Right curve: create Arc with counterClockwise=true
+                               final java.awt.geom.Point2D.Double prevGridPoint = prevPoint.point();
+                               final java.awt.geom.Point2D.Double currGridPoint = linePoint.point();
+                               final game.sprite.Arc arc = new game.sprite.Arc(null, lineSegment.lineColor(), prevGridPoint, currGridPoint, true);
+                               arc.renderLines(g2d);
+                           }
+                       }
+                   }
+               }
+           }
+           
+           // Reset composite
+           g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 1.0f));
+           
+           // Draw points
+           g2d.setColor(POINT_COLOR);
+           for (final game.sprite.LinePoint linePoint : lineSegment.points()) {
+               final Point screenPoint = gridToScreen(linePoint.point());
+               final int radius = 4;
+               g2d.fillOval(screenPoint.x - radius, screenPoint.y - radius, radius * 2, radius * 2);
+           }
+       }
      
      private void drawCurves(final Graphics2D g2d) {
          for (final game.sprite.Curve curve : spriteFile.getCurves()) {
@@ -694,60 +757,49 @@ public class SpriteCanvasPanel extends JPanel {
          // Set alpha for curves
          g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, UNSELECTED_POLYGON_OPACITY));
          
-         // Draw fill (if present)
-         if (curve.fillColor() != null) {
-             final Color fillColor = colorCache.get(curve.fillColor());
-             if (fillColor != null) {
-                 g2d.setColor(fillColor);
-                 // For a filled curve, create a closed path
-                 final java.awt.geom.Path2D.Double fillPath = new java.awt.geom.Path2D.Double();
-                 final Point start = gridToScreen(curve.start());
-                 final Point cp1 = gridToScreen(curve.controlPoint1());
-                 final Point cp2 = gridToScreen(curve.controlPoint2());
-                 final Point end = gridToScreen(curve.end());
-                 
-                 fillPath.moveTo(start.x, start.y);
-                 fillPath.curveTo(cp1.x, cp1.y, cp2.x, cp2.y, end.x, end.y);
-                 fillPath.lineTo(end.x, end.y);
-                 fillPath.closePath();
-                 g2d.fill(fillPath);
-             }
-         }
+         // Determine curve direction based on control points
+         final double dx = curve.end().x - curve.start().x;
+         final double dy = curve.end().y - curve.start().y;
          
-         // Draw line
+         // Use the midpoint of control points to determine direction
+         final double midCP_x = (curve.controlPoint1().x + curve.controlPoint2().x) / 2.0;
+         final double midCP_y = (curve.controlPoint1().y + curve.controlPoint2().y) / 2.0;
+         
+         // Vector from start to midpoint of control points
+         final double cp_dx = midCP_x - curve.start().x;
+         final double cp_dy = midCP_y - curve.start().y;
+         
+         // Cross product to determine which side: positive = left, negative = right
+         final double crossProduct = dx * cp_dy - dy * cp_dx;
+         final boolean isLeftCurve = crossProduct > 0;
+         
+         // Create Arc for rendering
+         final game.sprite.Arc arc = new game.sprite.Arc(
+             curve.fillColor(),
+             curve.lineColor(),
+             curve.start(),
+             curve.end(),
+             !isLeftCurve  // counterClockwise: false for LEFT, true for RIGHT
+         );
+         
+         // Draw line using Arc rendering
          if (curve.lineColor() != null) {
              final Color lineColor = colorCache.get(curve.lineColor());
              if (lineColor != null) {
                  g2d.setColor(lineColor);
                  g2d.setStroke(new BasicStroke(2));
-                 
-                 final java.awt.geom.Path2D.Double path = new java.awt.geom.Path2D.Double();
-                 final Point start = gridToScreen(curve.start());
-                 final Point cp1 = gridToScreen(curve.controlPoint1());
-                 final Point cp2 = gridToScreen(curve.controlPoint2());
-                 final Point end = gridToScreen(curve.end());
-                 
-                 path.moveTo(start.x, start.y);
-                 path.curveTo(cp1.x, cp1.y, cp2.x, cp2.y, end.x, end.y);
-                 g2d.draw(path);
+                 arc.renderLines(g2d);
              }
          }
          
          // Reset composite
          g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 1.0f));
          
-         // Draw control points
+         // Draw control point
          g2d.setColor(POINT_COLOR);
-         final Point[] points = {
-             gridToScreen(curve.start()),
-             gridToScreen(curve.controlPoint1()),
-             gridToScreen(curve.controlPoint2()),
-             gridToScreen(curve.end())
-         };
+         final Point controlScreen = gridToScreen(arc.getControlPoint());
          final int radius = 4;
-         for (final Point p : points) {
-             g2d.fillOval(p.x - radius, p.y - radius, radius * 2, radius * 2);
-         }
+         g2d.fillOval(controlScreen.x - radius, controlScreen.y - radius, radius * 2, radius * 2);
      }
      
      private void drawPaths(final Graphics2D g2d) {

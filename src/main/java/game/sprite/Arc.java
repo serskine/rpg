@@ -1,5 +1,6 @@
 package game.sprite;
 
+import java.awt.*;
 import java.awt.geom.Point2D;
 import java.util.Objects;
 
@@ -118,5 +119,40 @@ public record Arc(
                 }
             }
         }
+    }
+
+    public void renderLines(final Graphics2D g) {
+        final int dx = (int) getDx();
+        final int dy = (int) getDy();
+        final int eW = (int) Math.abs(dx)*2;
+        final int eH = (int) Math.abs(dy)*2;
+
+        final Point2D c = getControlPoint();
+        final int eX = (int) (c.getX() - Math.abs(dx));
+        final int eY = (int) (c.getY() - Math.abs(dy));
+
+        final int sweepDeg = 90;
+        int startAngle;
+
+        // Determine start angle based on direction (dx, dy signs) and curve direction (counterClockwise)
+        if (dx > 0D) {
+            if (dy < 0D) {
+                // NE direction
+                startAngle = counterClockwise ? 0 : 180;
+            } else {
+                // SE direction
+                startAngle = counterClockwise ? 90 : 270;
+            }
+        } else {
+            if (dy < 0D) {
+                // NW direction
+                startAngle = counterClockwise ? 270 : 90;
+            } else {
+                // SW direction
+                startAngle = counterClockwise ? 180 : 0;
+            }
+        }
+
+        g.drawArc(eX, eY, eW, eH, startAngle, sweepDeg);
     }
 }
