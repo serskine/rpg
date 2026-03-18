@@ -3,6 +3,7 @@ package game.view;
 import game.common.Room;
 import game.common.RoomFeature;
 import game.common.Path;
+import game.util.PanZoomController;
 
 import javax.swing.*;
 import java.awt.*;
@@ -17,10 +18,23 @@ public class FeaturePreviewPanel extends JPanel {
     private Room selectedRoom;
     private Map<Room, Path> doors;
     private final Random random = new Random();
+    
+    private final PanZoomController panZoomController;
+    private int roomLayoutStartX;
+    private int roomLayoutStartY;
+    private int roomLayoutWidth;
 
     public FeaturePreviewPanel() {
         setBackground(new Color(255, 250, 240));
         setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+        
+        // Initialize pan/zoom controller with reasonable defaults
+        panZoomController = new PanZoomController(1.0, 0.5, 5.0);
+        panZoomController.setOnStateChanged(this::repaint);
+        
+        addMouseListener(panZoomController);
+        addMouseMotionListener(panZoomController);
+        addMouseWheelListener(panZoomController);
     }
 
     public void setFeature(RoomFeature feature, Room room, Map<Room, Path> doors) {
@@ -85,7 +99,18 @@ public class FeaturePreviewPanel extends JPanel {
         g2d.drawString("ROOM LAYOUT", x, y);
         y += 30;
 
-        drawRoomLayout(g2d, x, y, width);
+        // Store layout position for pan/zoom application
+        roomLayoutStartX = x;
+        roomLayoutStartY = y;
+        roomLayoutWidth = width;
+        
+        // Apply pan/zoom to room layout rendering
+        Graphics2D g2dLayout = (Graphics2D) g2d.create();
+        g2dLayout.translate(panZoomController.getOffsetX(), panZoomController.getOffsetY());
+        g2dLayout.scale(panZoomController.getScale(), panZoomController.getScale());
+        
+        drawRoomLayout(g2dLayout, x, y, width);
+        g2dLayout.dispose();
 
         int roomHeight = getRoomHeight();
         y += roomHeight + 20;

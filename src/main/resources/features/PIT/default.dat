@@ -1,0 +1,74 @@
+{
+    colors: {
+        white: '#FFFFFF',
+        red: '#FF0000',
+        brown: '#A52A2A',
+        black: '#000000',
+        blue: '#0000FF',
+        grey: '#808080',
+        green: '#00FF00',
+        yellow: '#FFFF00',
+        cyan: '#00FFFF',
+        magenta: '#FF00FF',
+        orange: '#FFA500',
+        purple: '#800080'
+    },
+    bounds: { x: 0, y: 0, width: 24, height: 24 },
+    tileSize: 8,
+    shapes: [
+        {
+            fillColor: grey,
+            lineColor: black,
+            path: [
+                {   x: 0, y: 0     },
+                {   x: 8, y: 0     },
+                {   x: 8, y: 8     },
+                {   x: 0, y: 8     }
+            ]
+        },
+        {
+            fillColor: null,
+            lineColor: black,
+            path: [
+                {   x: 0, y: 0     },
+                {   x: 2, y: 2     }
+            ]
+        },
+        {
+            fillColor: null,
+            lineColor: black,
+            path: [
+                {   x: 8, y: 0     },
+                {   x: 6, y: 2     }
+            ]
+        },
+        {
+            fillColor: null,
+            lineColor: black,
+            path: [
+                {   x: 0, y: 8     },
+                {   x: 2, y: 6     }
+            ]
+        },
+        {
+            fillColor: null,
+            lineColor: black,
+            path: [
+                {   x: 8, y: 8     },
+                {   x: 6, y: 6     }
+            ]
+        },
+        {
+            fillColor: black,
+            lineColor: black,
+            path: [
+                {   x: 2, y: 2     },
+                {   x: 6, y: 2     },
+                {   x: 6, y: 6     },
+                {   x: 2, y: 6     }
+            ]
+        },
+
+    ]
+
+}

@@ -10,6 +10,7 @@ import game.sprite.PathPoint;
 import game.sprite.PathSegmentType;
 import game.sprite.Polygon;
 import game.sprite.SpriteFile;
+import game.util.PanZoomController;
 
 import javax.swing.*;
 import java.awt.*;
@@ -27,9 +28,9 @@ public class SpriteCanvasPanel extends JPanel {
     
     // Grid and viewport
     private static final int GRID_CELL_SIZE_PX = 25;
-    private static final double MIN_ZOOM = 0.5;
-    private static final double MAX_ZOOM = 10.0;
-    private static final double ZOOM_FACTOR = 1.1;
+    
+    // Pan/Zoom Controller (1.0 scale for pixels per grid cell, zoom 0.5-10.0)
+    private final PanZoomController panZoomController;
     
     // Interaction
     private static final int SNAP_DISTANCE = 10;  // pixels
@@ -51,28 +52,27 @@ public class SpriteCanvasPanel extends JPanel {
     private int selectedPolygonIndex = -1;
     private boolean useSaturatedColors = false;  // false = semi-transparent (default), true = saturated
     
-    // Viewport state
-    private double scale = 1.0;  // Pixels per grid cell (at 1.0, each grid cell = GRID_CELL_SIZE_PX)
-    private double offsetX = 0;
-    private double offsetY = 0;
-    
     // Mouse state
-     private Point lastMousePoint;
-     private Point2D.Double hoveredGridPoint;
-     
-     // Point dragging state
-     private Point2D.Double dragSourcePoint;  // Original point being dragged (in grid coords)
-     private Point2D.Double dragCurrentPoint; // Current destination during drag (in grid coords)
-     private String dragShapeType;            // Type of shape being dragged (POLYGON, CURVE, PATH, LINE_SEGMENT)
-     private int dragShapeIndex;              // Index of shape in its respective list
-     private int dragPointIndex;              // Index of point within the shape
-     
-     // Callbacks
-     private Runnable onPolygonsChanged;
-     private Runnable onPolygonSelectionChanged;
+    private Point lastMousePoint;
+    private Point2D.Double hoveredGridPoint;
+    
+    // Point dragging state
+    private Point2D.Double dragSourcePoint;  // Original point being dragged (in grid coords)
+    private Point2D.Double dragCurrentPoint; // Current destination during drag (in grid coords)
+    private String dragShapeType;            // Type of shape being dragged (POLYGON, CURVE, PATH, LINE_SEGMENT)
+    private int dragShapeIndex;              // Index of shape in its respective list
+    private int dragPointIndex;              // Index of point within the shape
+    
+    // Callbacks
+    private Runnable onPolygonsChanged;
+    private Runnable onPolygonSelectionChanged;
     
     public SpriteCanvasPanel() {
         setBackground(new Color(45, 45, 45));
+        
+        // Initialize pan/zoom controller with 1.0 scale and zoom range 0.5-10.0
+        this.panZoomController = new PanZoomController(1.0, 0.5, 10.0);
+        panZoomController.setOnStateChanged(this::repaint);
         
         // Mouse interaction
         final MouseAdapter mouseHandler = new MouseAdapter() {
@@ -90,42 +90,38 @@ public class SpriteCanvasPanel extends JPanel {
                     e.consume();
                 } else if (SwingUtilities.isRightMouseButton(e) && dragSourcePoint == null) {
                     // Right-click: prepare for pan/zoom (only if no left drag active)
+                    panZoomController.mousePressed(e);
                     e.consume();
                 }
             }
             
-             @Override
-             public void mouseDragged(final MouseEvent e) {
-                 if (lastMousePoint == null) {
-                     return;
-                 }
-                 
-                 // Left mouse button takes priority
-                 final boolean leftPressed = (e.getModifiersEx() & InputEvent.BUTTON1_DOWN_MASK) != 0;
-                 final boolean rightPressed = (e.getModifiersEx() & InputEvent.BUTTON3_DOWN_MASK) != 0;
-                 
-                 if (leftPressed) {
-                     // Left-click drag: drag point
-                     final Point2D.Double gridPoint = screenToGrid(e.getPoint());
-                     final Point2D.Double snappedPoint = snapToGrid(gridPoint);
-                     
-                     // If we have an active drag, update the destination
-                     if (dragSourcePoint != null) {
-                         dragCurrentPoint = snappedPoint;
-                         repaint();
-                         e.consume();
-                     }
-                 } else if (rightPressed) {
-                     // Right-click drag: pan
-                     final double dx = e.getX() - lastMousePoint.getX();
-                     final double dy = e.getY() - lastMousePoint.getY();
-                     offsetX += dx;
-                     offsetY += dy;
-                     lastMousePoint = e.getPoint();
-                     repaint();
-                     e.consume();
-                 }
-             }
+            @Override
+            public void mouseDragged(final MouseEvent e) {
+                if (lastMousePoint == null) {
+                    return;
+                }
+                
+                // Left mouse button takes priority
+                final boolean leftPressed = (e.getModifiersEx() & InputEvent.BUTTON1_DOWN_MASK) != 0;
+                final boolean rightPressed = (e.getModifiersEx() & InputEvent.BUTTON3_DOWN_MASK) != 0;
+                
+                if (leftPressed) {
+                    // Left-click drag: drag point
+                    final Point2D.Double gridPoint = screenToGrid(e.getPoint());
+                    final Point2D.Double snappedPoint = snapToGrid(gridPoint);
+                    
+                    // If we have an active drag, update the destination
+                    if (dragSourcePoint != null) {
+                        dragCurrentPoint = snappedPoint;
+                        repaint();
+                        e.consume();
+                    }
+                } else if (rightPressed) {
+                    // Right-click drag: pan
+                    panZoomController.mouseDragged(e);
+                    lastMousePoint = e.getPoint();
+                }
+            }
             
             @Override
             public void mouseMoved(final MouseEvent e) {
@@ -143,61 +139,47 @@ public class SpriteCanvasPanel extends JPanel {
                 repaint();
             }
             
-             @Override
-             public void mouseWheelMoved(final MouseWheelEvent e) {
-                 if ((e.getModifiersEx() & InputEvent.BUTTON3_DOWN_MASK) != 0) {
-                     // Right-click + scroll: zoom
-                     final double oldScale = scale;
-                     if (e.getWheelRotation() < 0) {
-                         scale *= ZOOM_FACTOR;
-                     } else {
-                         scale /= ZOOM_FACTOR;
-                     }
-                     
-                     // Clamp zoom
-                     scale = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, scale));
-                     
-                     // Adjust offset to zoom toward mouse
-                     final double mouseX = e.getX();
-                     final double mouseY = e.getY();
-                     final double worldX = (mouseX - offsetX) / oldScale;
-                     final double worldY = (mouseY - offsetY) / oldScale;
-                     offsetX = mouseX - worldX * scale;
-                     offsetY = mouseY - worldY * scale;
-                     
-                     repaint();
-                     e.consume();
-                 }
-             }
-             
-             @Override
-             public void mouseReleased(final MouseEvent e) {
-                 // Only release drag on left mouse button release
-                 if (SwingUtilities.isLeftMouseButton(e)) {
-                     // Complete point drag if one is in progress
-                     if (dragSourcePoint != null && dragCurrentPoint != null && 
-                         !dragSourcePoint.equals(dragCurrentPoint)) {
-                         // Apply the point move
-                         applyPointDrag(dragSourcePoint, dragCurrentPoint);
-                     }
-                     
-                     // Clear drag state
-                     dragSourcePoint = null;
-                     dragCurrentPoint = null;
-                     dragShapeType = null;
-                     dragPointIndex = -1;
-                     dragShapeIndex = -1;
-                     
-                     repaint();
-                     e.consume();
-                 }
-             }
-         };
-         
-         addMouseListener(mouseHandler);
-         addMouseMotionListener(mouseHandler);
-         addMouseWheelListener(mouseHandler);
-     }
+            @Override
+            public void mouseWheelMoved(final MouseWheelEvent e) {
+                if ((e.getModifiersEx() & InputEvent.BUTTON3_DOWN_MASK) != 0) {
+                    // Right-click + scroll: zoom
+                    panZoomController.mouseWheelMoved(e);
+                }
+            }
+            
+            @Override
+            public void mouseReleased(final MouseEvent e) {
+                // Handle pan/zoom release
+                if (SwingUtilities.isRightMouseButton(e)) {
+                    panZoomController.mouseReleased(e);
+                }
+                
+                // Only release drag on left mouse button release
+                if (SwingUtilities.isLeftMouseButton(e)) {
+                    // Complete point drag if one is in progress
+                    if (dragSourcePoint != null && dragCurrentPoint != null && 
+                        !dragSourcePoint.equals(dragCurrentPoint)) {
+                        // Apply the point move
+                        applyPointDrag(dragSourcePoint, dragCurrentPoint);
+                    }
+                    
+                    // Clear drag state
+                    dragSourcePoint = null;
+                    dragCurrentPoint = null;
+                    dragShapeType = null;
+                    dragPointIndex = -1;
+                    dragShapeIndex = -1;
+                    
+                    repaint();
+                    e.consume();
+                }
+            }
+        };
+        
+        addMouseListener(mouseHandler);
+        addMouseMotionListener(mouseHandler);
+        addMouseWheelListener(mouseHandler);
+    }
     
     /**
      * Set the sprite file to display.
@@ -328,18 +310,18 @@ public class SpriteCanvasPanel extends JPanel {
     private void drawGrid(final Graphics2D g2d) {
         final int tileSize = spriteFile.tileSize();
         
-        final int gridPixelSize = (int)(GRID_CELL_SIZE_PX * scale);
+        final int gridPixelSize = (int)(GRID_CELL_SIZE_PX * panZoomController.getScale());
         final int tilePixelSize = gridPixelSize * tileSize;
         
         // Calculate visible grid bounds
-        final int gridStartX = (int)Math.floor(-offsetX / gridPixelSize);
-        final int gridEndX = (int)Math.ceil((getWidth() - offsetX) / gridPixelSize);
-        final int gridStartY = (int)Math.floor(-offsetY / gridPixelSize);
-        final int gridEndY = (int)Math.ceil((getHeight() - offsetY) / gridPixelSize);
+        final int gridStartX = (int)Math.floor(-panZoomController.getOffsetX() / gridPixelSize);
+        final int gridEndX = (int)Math.ceil((getWidth() - panZoomController.getOffsetX()) / gridPixelSize);
+        final int gridStartY = (int)Math.floor(-panZoomController.getOffsetY() / gridPixelSize);
+        final int gridEndY = (int)Math.ceil((getHeight() - panZoomController.getOffsetY()) / gridPixelSize);
         
         // Draw vertical lines
         for (int x = gridStartX; x <= gridEndX; x++) {
-            final int screenX = (int)(x * gridPixelSize + offsetX);
+            final int screenX = (int)(x * gridPixelSize + panZoomController.getOffsetX());
             // Thicker red line if x is divisible by tileSize
             if (x % tileSize == 0) {
                 g2d.setColor(Color.RED);
@@ -353,7 +335,7 @@ public class SpriteCanvasPanel extends JPanel {
         
         // Draw horizontal lines
         for (int y = gridStartY; y <= gridEndY; y++) {
-            final int screenY = (int)(y * gridPixelSize + offsetY);
+            final int screenY = (int)(y * gridPixelSize + panZoomController.getOffsetY());
             // Thicker red line if y is divisible by tileSize
             if (y % tileSize == 0) {
                 g2d.setColor(Color.RED);
@@ -620,7 +602,7 @@ public class SpriteCanvasPanel extends JPanel {
     
     private void drawCircle(final Graphics2D g2d, final Circle circle) {
         final Point centerScreen = gridToScreen(circle.center());
-        final int radiusPixels = (int)(circle.radius() * GRID_CELL_SIZE_PX * scale);
+        final int radiusPixels = (int)(circle.radius() * GRID_CELL_SIZE_PX * panZoomController.getScale());
         
         // Set alpha for unselected circles
         if (!useSaturatedColors) {
@@ -1002,14 +984,14 @@ public class SpriteCanvasPanel extends JPanel {
      }
     
     private Point2D.Double screenToGrid(final Point screenPoint) {
-        final double gridX = (screenPoint.x - offsetX) / (GRID_CELL_SIZE_PX * scale);
-        final double gridY = (screenPoint.y - offsetY) / (GRID_CELL_SIZE_PX * scale);
+        final double gridX = (screenPoint.x - panZoomController.getOffsetX()) / (GRID_CELL_SIZE_PX * panZoomController.getScale());
+        final double gridY = (screenPoint.y - panZoomController.getOffsetY()) / (GRID_CELL_SIZE_PX * panZoomController.getScale());
         return new Point2D.Double(gridX, gridY);
     }
     
     private Point gridToScreen(final Point2D.Double gridPoint) {
-        final int screenX = (int)(gridPoint.x * GRID_CELL_SIZE_PX * scale + offsetX);
-        final int screenY = (int)(gridPoint.y * GRID_CELL_SIZE_PX * scale + offsetY);
+        final int screenX = (int)(gridPoint.x * GRID_CELL_SIZE_PX * panZoomController.getScale() + panZoomController.getOffsetX());
+        final int screenY = (int)(gridPoint.y * GRID_CELL_SIZE_PX * panZoomController.getScale() + panZoomController.getOffsetY());
         return new Point(screenX, screenY);
     }
     
@@ -1035,8 +1017,7 @@ public class SpriteCanvasPanel extends JPanel {
     
     private void centerView() {
         if (polygons.isEmpty()) {
-            offsetX = 0;
-            offsetY = 0;
+            panZoomController.setOffset(0, 0);
             return;
         }
         
@@ -1044,16 +1025,16 @@ public class SpriteCanvasPanel extends JPanel {
         double minX = Double.MAX_VALUE;
         double maxX = -Double.MAX_VALUE;
         double minY = Double.MAX_VALUE;
-         double maxY = -Double.MAX_VALUE;
-         
-         for (final Polygon polygon : polygons) {
-             for (final PathPoint pathPoint : polygon.path()) {
-                 minX = Math.min(minX, pathPoint.x());
-                 maxX = Math.max(maxX, pathPoint.x());
-                 minY = Math.min(minY, pathPoint.y());
-                 maxY = Math.max(maxY, pathPoint.y());
-             }
-         }
+        double maxY = -Double.MAX_VALUE;
+        
+        for (final Polygon polygon : polygons) {
+            for (final PathPoint pathPoint : polygon.path()) {
+                minX = Math.min(minX, pathPoint.x());
+                maxX = Math.max(maxX, pathPoint.x());
+                minY = Math.min(minY, pathPoint.y());
+                maxY = Math.max(maxY, pathPoint.y());
+            }
+        }
         
         if (minX == Double.MAX_VALUE) {
             return;
@@ -1062,9 +1043,10 @@ public class SpriteCanvasPanel extends JPanel {
         final double centerX = (minX + maxX) / 2;
         final double centerY = (minY + maxY) / 2;
         
-         offsetX = getWidth() / 2.0 - centerX * GRID_CELL_SIZE_PX * scale;
-         offsetY = getHeight() / 2.0 - centerY * GRID_CELL_SIZE_PX * scale;
-     }
+        final double offsetX = getWidth() / 2.0 - centerX * GRID_CELL_SIZE_PX * panZoomController.getScale();
+        final double offsetY = getHeight() / 2.0 - centerY * GRID_CELL_SIZE_PX * panZoomController.getScale();
+        panZoomController.setOffset(offsetX, offsetY);
+    }
      
      /**
       * Find a point at the given screen location and initialize drag tracking.

@@ -1,6 +1,14 @@
 package game.view;
 
 import game.common.RoomFeature;
+import game.sprite.SpriteDataParser;
+import game.sprite.SpriteFile;
+import game.sprite.SpriteValidationResult;
+import game.sprite.Circle;
+import game.sprite.Polygon;
+import game.sprite.Curve;
+import game.sprite.Path;
+import game.sprite.Arc;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.xml.sax.SAXException;
@@ -12,15 +20,19 @@ import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
 import java.awt.*;
 import java.awt.geom.AffineTransform;
+import java.awt.geom.Point2D;
+import java.awt.geom.CubicCurve2D;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Scanner;
 
 /**
- * Utility class for loading and rendering SVG features.
- * Each RoomFeature has a corresponding folder with SVG files that can be loaded and rendered.
+ * Utility class for loading and rendering SVG and .dat sprite features.
+ * Each RoomFeature has a corresponding folder with SVG or .dat files that can be loaded and rendered.
  */
 public class SVGFeatureLoader {
     
@@ -28,15 +40,26 @@ public class SVGFeatureLoader {
     private static final String SVG_RESOURCE_PATH = "/features/";
     
     /**
-     * Load an SVG for a given RoomFeature and render it to a BufferedImage.
+     * Load a feature sprite for a given RoomFeature and render it to a BufferedImage.
+     * Tries .dat files first (human-designed sprites), then falls back to SVG.
      * Uses caching to avoid repeated loads.
      *
      * @param feature the RoomFeature to load
      * @param width desired width in pixels
      * @param height desired height in pixels
-     * @return BufferedImage of the rendered SVG, or null if not found
+     * @return BufferedImage of the rendered sprite, or null if not found
      */
     public static BufferedImage loadFeatureSVG(final RoomFeature feature, final int width, final int height) {
+        // Try to load .dat file first (human-designed sprite)
+        String datResourcePath = SVG_RESOURCE_PATH + feature.name() + "/default.dat";
+        try (InputStream inputStream = SVGFeatureLoader.class.getResourceAsStream(datResourcePath)) {
+            if (inputStream != null) {
+                return renderDatSpriteToImage(inputStream, width, height);
+            }
+        } catch (Exception e) {
+            // Fall through to SVG attempt
+        }
+        
         // Try to load the SVG file
         String resourcePath = SVG_RESOURCE_PATH + feature.name() + "/default.svg";
         
@@ -51,6 +74,245 @@ public class SVGFeatureLoader {
         } catch (Exception e) {
             // Fallback: create a placeholder image
             return createPlaceholderImage(feature, width, height);
+        }
+    }
+    
+    /**
+     * Render a .dat sprite file to a BufferedImage.
+     */
+    private static BufferedImage renderDatSpriteToImage(final InputStream datStream, final int width, final int height) 
+            throws IOException {
+        // Read the entire stream into a string
+        String content;
+        try (Scanner scanner = new Scanner(datStream, StandardCharsets.UTF_8)) {
+            scanner.useDelimiter("\\A");
+            content = scanner.hasNext() ? scanner.next() : "";
+        }
+        
+        // Parse the sprite data
+        SpriteValidationResult result = SpriteDataParser.parse(content);
+        if (!result.isValid()) {
+            throw new IOException("Failed to parse sprite file: " + result.getErrorMessage());
+        }
+        
+        SpriteFile spriteFile = result.getSpriteFile();
+        
+        // Create a BufferedImage to render into
+        BufferedImage image = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D g2d = image.createGraphics();
+        
+        // Enable anti-aliasing for better rendering
+        g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+        g2d.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
+        
+        try {
+            // Calculate scaling from tile coordinates (0-8) to image pixels
+            int tileSize = spriteFile.tileSize();
+            double scaleX = (double) width / tileSize;
+            double scaleY = (double) height / tileSize;
+            
+            // Render all shapes in order (circles, polygons, curves, paths, arcs)
+            for (final Circle circle : spriteFile.getCircles()) {
+                renderDatCircle(g2d, circle, scaleX, scaleY, spriteFile.colors());
+            }
+            
+            for (final Polygon polygon : spriteFile.getPolygons()) {
+                renderDatPolygon(g2d, polygon, scaleX, scaleY, spriteFile.colors());
+            }
+            
+            for (final Curve curve : spriteFile.getCurves()) {
+                renderDatCurve(g2d, curve, scaleX, scaleY, spriteFile.colors());
+            }
+            
+            for (final Path path : spriteFile.getPaths()) {
+                renderDatPath(g2d, path, scaleX, scaleY, spriteFile.colors());
+            }
+            
+            for (final Arc arc : spriteFile.getArcs()) {
+                renderDatArc(g2d, arc, scaleX, scaleY, spriteFile.colors());
+            }
+            
+        } finally {
+            g2d.dispose();
+        }
+        
+        return image;
+    }
+    
+    /**
+     * Render a single circle from a .dat sprite file.
+     */
+    private static void renderDatCircle(final Graphics2D g2d, final Circle circle, 
+                                        final double scaleX, final double scaleY, 
+                                        final Map<String, String> colorMap) {
+        double cx = circle.center().getX() * scaleX;
+        double cy = circle.center().getY() * scaleY;
+        double r = circle.radius() * Math.min(scaleX, scaleY);
+        
+        // Set fill color
+        if (circle.fillColor() != null && !circle.fillColor().isEmpty()) {
+            String colorHex = colorMap.getOrDefault(circle.fillColor(), "#000000");
+            g2d.setColor(parseHexColor(colorHex));
+            java.awt.geom.Ellipse2D filledCircle = 
+                new java.awt.geom.Ellipse2D.Double(cx - r, cy - r, r * 2, r * 2);
+            g2d.fill(filledCircle);
+        }
+        
+        // Set line color and draw stroke
+        if (circle.lineColor() != null && !circle.lineColor().isEmpty()) {
+            String colorHex = colorMap.getOrDefault(circle.lineColor(), "#000000");
+            g2d.setColor(parseHexColor(colorHex));
+            g2d.setStroke(new BasicStroke((float) (0.5 * Math.min(scaleX, scaleY))));
+            java.awt.geom.Ellipse2D strokeCircle = 
+                new java.awt.geom.Ellipse2D.Double(cx - r, cy - r, r * 2, r * 2);
+            g2d.draw(strokeCircle);
+        }
+    }
+    
+    /**
+     * Render a polygon from a .dat sprite file.
+     */
+    private static void renderDatPolygon(final Graphics2D g2d, final Polygon polygon,
+                                         final double scaleX, final double scaleY,
+                                         final Map<String, String> colorMap) {
+        if (polygon.path() == null || polygon.path().isEmpty()) {
+            return;
+        }
+        
+        // Convert path points to scaled pixel coordinates
+        int[] xPoints = new int[polygon.path().size()];
+        int[] yPoints = new int[polygon.path().size()];
+        
+        for (int i = 0; i < polygon.path().size(); i++) {
+            Point2D.Double pt = polygon.path().get(i).point();
+            xPoints[i] = (int) (pt.getX() * scaleX);
+            yPoints[i] = (int) (pt.getY() * scaleY);
+        }
+        
+        java.awt.Polygon awtPolygon = new java.awt.Polygon(xPoints, yPoints, xPoints.length);
+        
+        // Set fill color
+        if (polygon.fillColor() != null && !polygon.fillColor().isEmpty()) {
+            String colorHex = colorMap.getOrDefault(polygon.fillColor(), "#000000");
+            g2d.setColor(parseHexColor(colorHex));
+            g2d.fill(awtPolygon);
+        }
+        
+        // Set line color and draw stroke
+        if (polygon.lineColor() != null && !polygon.lineColor().isEmpty()) {
+            String colorHex = colorMap.getOrDefault(polygon.lineColor(), "#000000");
+            g2d.setColor(parseHexColor(colorHex));
+            g2d.setStroke(new BasicStroke((float) (0.5 * Math.min(scaleX, scaleY))));
+            if (!polygon.isOpen()) {
+                g2d.draw(awtPolygon);
+            } else {
+                // Draw as a polyline (open path)
+                for (int i = 0; i < xPoints.length - 1; i++) {
+                    g2d.drawLine(xPoints[i], yPoints[i], xPoints[i + 1], yPoints[i + 1]);
+                }
+            }
+        }
+    }
+    
+    /**
+     * Render a curve (Bezier) from a .dat sprite file.
+     */
+    private static void renderDatCurve(final Graphics2D g2d, final Curve curve,
+                                       final double scaleX, final double scaleY,
+                                       final Map<String, String> colorMap) {
+        double x1 = curve.start().getX() * scaleX;
+        double y1 = curve.start().getY() * scaleY;
+        double ctrlX1 = curve.controlPoint1().getX() * scaleX;
+        double ctrlY1 = curve.controlPoint1().getY() * scaleY;
+        double ctrlX2 = curve.controlPoint2().getX() * scaleX;
+        double ctrlY2 = curve.controlPoint2().getY() * scaleY;
+        double x2 = curve.end().getX() * scaleX;
+        double y2 = curve.end().getY() * scaleY;
+        
+        CubicCurve2D bezier = new CubicCurve2D.Double(x1, y1, ctrlX1, ctrlY1, ctrlX2, ctrlY2, x2, y2);
+        
+        // Draw stroke
+        if (curve.lineColor() != null && !curve.lineColor().isEmpty()) {
+            String colorHex = colorMap.getOrDefault(curve.lineColor(), "#000000");
+            g2d.setColor(parseHexColor(colorHex));
+            g2d.setStroke(new BasicStroke((float) (0.5 * Math.min(scaleX, scaleY))));
+            g2d.draw(bezier);
+        }
+    }
+    
+    /**
+     * Render a path from a .dat sprite file.
+     */
+    private static void renderDatPath(final Graphics2D g2d, final Path path,
+                                      final double scaleX, final double scaleY,
+                                      final Map<String, String> colorMap) {
+        if (path.points() == null || path.points().isEmpty()) {
+            return;
+        }
+        
+        // Create a GeneralPath from the points
+        java.awt.geom.GeneralPath generalPath = new java.awt.geom.GeneralPath();
+        
+        for (int i = 0; i < path.points().size(); i++) {
+            Point2D.Double pt = path.points().get(i);
+            double x = pt.getX() * scaleX;
+            double y = pt.getY() * scaleY;
+            
+            if (i == 0) {
+                generalPath.moveTo(x, y);
+            } else {
+                generalPath.lineTo(x, y);
+            }
+        }
+        
+        // Draw stroke
+        if (path.lineColor() != null && !path.lineColor().isEmpty()) {
+            String colorHex = colorMap.getOrDefault(path.lineColor(), "#000000");
+            g2d.setColor(parseHexColor(colorHex));
+            g2d.setStroke(new BasicStroke((float) (0.5 * Math.min(scaleX, scaleY))));
+            g2d.draw(generalPath);
+        }
+    }
+    
+    /**
+     * Render an arc from a .dat sprite file.
+     */
+    private static void renderDatArc(final Graphics2D g2d, final Arc arc,
+                                     final double scaleX, final double scaleY,
+                                     final Map<String, String> colorMap) {
+        double x1 = arc.start().getX() * scaleX;
+        double y1 = arc.start().getY() * scaleY;
+        double x2 = arc.end().getX() * scaleX;
+        double y2 = arc.end().getY() * scaleY;
+        
+        // Calculate control point (where the arc curves)
+        Point2D controlPt = arc.getControlPoint();
+        double ctrlX = controlPt.getX() * scaleX;
+        double ctrlY = controlPt.getY() * scaleY;
+        
+        // Create a quadratic curve approximation of the arc
+        java.awt.geom.QuadCurve2D quadCurve = new java.awt.geom.QuadCurve2D.Double(
+            x1, y1, ctrlX, ctrlY, x2, y2
+        );
+        
+        // Draw stroke
+        if (arc.lineColor() != null && !arc.lineColor().isEmpty()) {
+            String colorHex = colorMap.getOrDefault(arc.lineColor(), "#000000");
+            g2d.setColor(parseHexColor(colorHex));
+            g2d.setStroke(new BasicStroke((float) (0.5 * Math.min(scaleX, scaleY))));
+            g2d.draw(quadCurve);
+        }
+    }
+    
+    /**
+     * Parse a hex color string (e.g., "#FF0000") to a Color object.
+     */
+    private static Color parseHexColor(final String hexColor) {
+        try {
+            String cleanHex = hexColor.startsWith("#") ? hexColor.substring(1) : hexColor;
+            return new Color(Integer.parseInt(cleanHex, 16));
+        } catch (NumberFormatException e) {
+            return Color.BLACK;
         }
     }
     

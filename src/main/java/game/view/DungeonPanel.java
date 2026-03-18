@@ -8,8 +8,10 @@ import game.common.Room;
 import game.common.RoomFeature;
 import game.util.Edge;
 import game.util.Graph;
+import game.util.PanZoomController;
 
 import javax.swing.*;
+import javax.swing.SwingUtilities;
 import java.awt.*;
 import java.awt.event.*;
 import java.awt.geom.*;
@@ -23,18 +25,11 @@ public class DungeonPanel extends JPanel {
     // Map room to its center position in "Grid Units" (1 unit = 5ft)
     private final Map<Room, Point> roomPositions = new HashMap<>();
     
-    // Viewport state
-    private double scale = 50.0; // Pixels per 5ft unit (tile size)
-    private double offsetX = 0;
-    private double offsetY = 0;
+    // Pan/Zoom Controller (50.0 scale for pixels per 5ft unit)
+    private final PanZoomController panZoomController;
     
     // Interaction state
-    private Point lastMousePoint;
     private Room selectedRoom;
-    
-    // Constants
-    private static final double MIN_ZOOM = 1.0;
-    private static final double MAX_ZOOM = 500.0;
     
     // Callback for room selection
     private RoomSelectionListener roomSelectionListener;
@@ -42,60 +37,41 @@ public class DungeonPanel extends JPanel {
     public DungeonPanel() {
         setBackground(new Color(45, 45, 45));
         
+        // Initialize pan/zoom controller with 50.0 scale and zoom range 1.0-500.0
+        this.panZoomController = new PanZoomController(50.0, 1.0, 500.0);
+        panZoomController.setOnStateChanged(this::repaint);
+        
         // Add interaction listeners
         MouseAdapter mouseHandler = new MouseAdapter() {
             @Override
             public void mousePressed(MouseEvent e) {
-                lastMousePoint = e.getPoint();
+                // Handle pan/zoom first (right-click)
+                panZoomController.mousePressed(e);
                 
-                // Check if a room was clicked
-                Room clickedRoom = getRoomAtPoint(e.getPoint());
-                if (clickedRoom != null) {
-                    setSelectedRoom(clickedRoom);
-                    e.consume();
-                    return;
+                // Check if a room was clicked (left-click)
+                if (!SwingUtilities.isRightMouseButton(e)) {
+                    Room clickedRoom = getRoomAtPoint(e.getPoint());
+                    if (clickedRoom != null) {
+                        setSelectedRoom(clickedRoom);
+                        e.consume();
+                        return;
+                    }
                 }
             }
 
             @Override
             public void mouseDragged(MouseEvent e) {
-                if (lastMousePoint != null) {
-                    double dx = e.getX() - lastMousePoint.getX();
-                    double dy = e.getY() - lastMousePoint.getY();
-                    offsetX += dx;
-                    offsetY += dy;
-                    lastMousePoint = e.getPoint();
-                    repaint();
-                }
+                panZoomController.mouseDragged(e);
+            }
+
+            @Override
+            public void mouseReleased(MouseEvent e) {
+                panZoomController.mouseReleased(e);
             }
 
             @Override
             public void mouseWheelMoved(MouseWheelEvent e) {
-                double zoomFactor = 1.1;
-                double oldScale = scale;
-                
-                if (e.getWheelRotation() < 0) {
-                    scale *= zoomFactor;
-                } else {
-                    scale /= zoomFactor;
-                }
-                
-                // Clamp zoom
-                scale = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, scale));
-                
-                // Adjust offset to zoom toward mouse pointer
-                double mouseX = e.getX();
-                double mouseY = e.getY();
-                
-                // Calculate world point under mouse before zoom
-                double worldX = (mouseX - offsetX) / oldScale;
-                double worldY = (mouseY - offsetY) / oldScale;
-                
-                // Update offset to keep that world point under mouse
-                offsetX = mouseX - worldX * scale;
-                offsetY = mouseY - worldY * scale;
-                
-                repaint();
+                panZoomController.mouseWheelMoved(e);
             }
         };
         
@@ -126,9 +102,8 @@ public class DungeonPanel extends JPanel {
     private Room getRoomAtPoint(Point screenPoint) {
         if (dungeon == null || roomPositions.isEmpty()) return null;
         
-        // Convert screen point to world coordinates
-        double worldX = (screenPoint.x - offsetX) / scale;
-        double worldY = (screenPoint.y - offsetY) / scale;
+        // Convert screen point to world coordinates using controller
+        PanZoomController.Point2D worldPoint = panZoomController.worldCoordinates(screenPoint);
         
         // Check which room contains this point
         for (Map.Entry<Room, Point> entry : roomPositions.entrySet()) {
@@ -136,7 +111,7 @@ public class DungeonPanel extends JPanel {
             Point center = entry.getValue();
             Rectangle rect = getRoomRect(room, center);
             
-            if (rect.contains((int)worldX, (int)worldY)) {
+            if (rect.contains((int)worldPoint.x, (int)worldPoint.y)) {
                 return room;
             }
         }
@@ -161,8 +136,7 @@ public class DungeonPanel extends JPanel {
         double centerX = (minX + maxX) / 2.0;
         double centerY = (minY + maxY) / 2.0;
         
-        offsetX = getWidth() / 2.0 - centerX * scale;
-        offsetY = getHeight() / 2.0 - centerY * scale;
+        panZoomController.centerOn(centerX, centerY, getWidth(), getHeight());
     }
 
     private void initializeLayout() {
@@ -326,8 +300,8 @@ public class DungeonPanel extends JPanel {
         g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_OFF); // Pixel art style
         
         AffineTransform saveXform = g2d.getTransform();
-        g2d.translate(offsetX, offsetY);
-        g2d.scale(scale, scale);
+        g2d.translate(panZoomController.getOffsetX(), panZoomController.getOffsetY());
+        g2d.scale(panZoomController.getScale(), panZoomController.getScale());
         
         // Draw Directed Graph Edges (straight lines)
         drawDirectedGraphEdges(g2d);
@@ -372,7 +346,7 @@ public class DungeonPanel extends JPanel {
          // Draw title above the room
          AffineTransform titleTransform = g2d.getTransform();
          g2d.translate(center.x, r.y);
-         g2d.scale(1/scale, 1/scale);
+         g2d.scale(1/panZoomController.getScale(), 1/panZoomController.getScale());
          
          g2d.setColor(Color.BLUE);
          g2d.setFont(new Font("Arial", Font.BOLD, 16));
@@ -452,7 +426,7 @@ public class DungeonPanel extends JPanel {
         
         // Draw border
         g2d.setColor(Color.BLACK);
-        float strokeW = (float)(1.5 / scale);
+        float strokeW = (float)(1.5 / panZoomController.getScale());
         g2d.setStroke(new BasicStroke(strokeW));
         g2d.drawRect(x, y, width, height);
         
@@ -466,7 +440,7 @@ public class DungeonPanel extends JPanel {
             g2d.fillOval(circleX, circleY, circleSize, circleSize);
             
             g2d.setColor(Color.WHITE);
-            strokeW = (float)(1.0 / scale);
+            strokeW = (float)(1.0 / panZoomController.getScale());
             g2d.setStroke(new BasicStroke(strokeW));
             g2d.drawOval(circleX, circleY, circleSize, circleSize);
         }
@@ -475,10 +449,10 @@ public class DungeonPanel extends JPanel {
         if (width >= 1 && height >= 1) {
             AffineTransform t = g2d.getTransform();
             g2d.translate(x + width / 2.0, y + height / 2.0);
-            g2d.scale(1.0 / scale, 1.0 / scale);
+            g2d.scale(1.0 / panZoomController.getScale(), 1.0 / panZoomController.getScale());
             
             g2d.setColor(Color.WHITE);
-            g2d.setFont(new Font("Arial", Font.BOLD, (int)(Math.min(width, height) * scale * 0.4)));
+            g2d.setFont(new Font("Arial", Font.BOLD, (int)(Math.min(width, height) * panZoomController.getScale() * 0.4)));
             String initial = creature.job.name().substring(0, Math.min(1, creature.job.name().length()));
             FontMetrics fm = g2d.getFontMetrics();
             g2d.drawString(initial, -fm.stringWidth(initial) / 2, fm.getAscent() / 2);
@@ -525,7 +499,7 @@ public class DungeonPanel extends JPanel {
         g2d.setClip(shape);
         
         g2d.setColor(new Color(220, 220, 220));
-        float strokeW = (float)(0.5/scale);
+        float strokeW = (float)(0.5/panZoomController.getScale());
         g2d.setStroke(new BasicStroke(strokeW));
         
         Rectangle2D bounds = shape.getBounds2D();
@@ -562,7 +536,7 @@ public class DungeonPanel extends JPanel {
             
             // Draw line
             g2d.setColor(Color.DARK_GRAY);
-            float strokeW = (float)(2.0 / scale);
+            float strokeW = (float)(2.0 / panZoomController.getScale());
             g2d.setStroke(new BasicStroke(strokeW));
             g2d.draw(new Line2D.Double(fromEdge.x, fromEdge.y, toEdge.x, toEdge.y));
             
@@ -576,7 +550,7 @@ public class DungeonPanel extends JPanel {
     private void drawPathDistanceLabel(Graphics2D g2d, PathDistance distance, double midX, double midY) {
         AffineTransform t = g2d.getTransform();
         g2d.translate(midX, midY);
-        g2d.scale(1/scale, 1/scale);
+        g2d.scale(1/panZoomController.getScale(), 1/panZoomController.getScale());
         g2d.setColor(Color.BLACK);
         g2d.setFont(new Font("SansSerif", Font.PLAIN, 14));
         String label = distance.name();
@@ -688,7 +662,7 @@ public class DungeonPanel extends JPanel {
         
         // Draw door symbol PARALLEL to the wall
         g2d.setColor(new Color(101, 67, 33)); // Brown
-        g2d.setStroke(new BasicStroke((float)(3.0/scale)));
+        g2d.setStroke(new BasicStroke((float)(3.0/panZoomController.getScale())));
         
         if (isVerticalWall) {
             // Vertical wall → draw vertical line (parallel to wall)
@@ -705,32 +679,32 @@ public class DungeonPanel extends JPanel {
         g2d.setColor(isSecret ? Color.MAGENTA : Color.ORANGE);
         g2d.fill(box);
         g2d.setColor(Color.BLACK);
-        g2d.setStroke(new BasicStroke((float)(1.0/scale)));
+        g2d.setStroke(new BasicStroke((float)(1.0/panZoomController.getScale())));
         g2d.draw(box);
         
         // Draw question mark if secret
         if (isSecret) {
             g2d.setColor(Color.BLACK);
-            Font font = new Font("Monospaced", Font.BOLD, (int)(0.25 * scale)); 
+            Font font = new Font("Monospaced", Font.BOLD, (int)(0.25 * panZoomController.getScale())); 
             g2d.setFont(font);
             FontMetrics fm = g2d.getFontMetrics();
             
             AffineTransform t2 = g2d.getTransform();
-            g2d.scale(1/scale, 1/scale);
-            g2d.drawString("?", (float)(0.5 * scale - fm.stringWidth("?")/2), (float)(0.5 * scale + fm.getAscent()/3));
+            g2d.scale(1/panZoomController.getScale(), 1/panZoomController.getScale());
+            g2d.drawString("?", (float)(0.5 * panZoomController.getScale() - fm.stringWidth("?")/2), (float)(0.5 * panZoomController.getScale() + fm.getAscent()/3));
             g2d.setTransform(t2);
         }
         
         // Draw DC labels
         g2d.setColor(Color.RED);
         AffineTransform t3 = g2d.getTransform();
-        g2d.scale(1/scale, 1/scale);
+        g2d.scale(1/panZoomController.getScale(), 1/panZoomController.getScale());
         g2d.setFont(new Font("SansSerif", Font.BOLD, 16));
         FontMetrics fm = g2d.getFontMetrics();
         
         if (stealthDc.isPresent()) {
             String label1 = "S " + stealthDc.get();
-            float textY = (float)(-boxSize*scale/2 - 2);
+            float textY = (float)(-boxSize*panZoomController.getScale()/2 - 2);
             g2d.drawString(label1, (float)(-fm.stringWidth(label1)/2), textY);
             
             if (lockDc.isPresent()) {
@@ -739,7 +713,7 @@ public class DungeonPanel extends JPanel {
             }
         } else if (lockDc.isPresent()) {
             String label = "DC " + lockDc.get();
-            float textY = (float)(-boxSize*scale/2 - 2);
+            float textY = (float)(-boxSize*panZoomController.getScale()/2 - 2);
             g2d.drawString(label, (float)(-fm.stringWidth(label)/2), textY);
         }
         

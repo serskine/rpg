@@ -1,0 +1,92 @@
+{
+    colors: {
+        black: '#000000',
+        brown: '#A52A2A',
+        grey: '#808080',
+        white: '#FFFFFF'
+    },
+    bounds: {
+        x: 0,
+        y: 0,
+        width: 24:
+        height: 16
+    },
+    shapes: [
+        {
+            fillColor: brown,
+            lineColor: black,
+            points: [
+                { x: 1, y: 1 },
+                { x: 23, y: 1 },
+                { x: 23, y: 15 },
+                { x: 1, y: 15 }
+            ]
+        },
+        {
+            fillColor: grey,
+            lineColor: black,
+            points: [
+                { x: 2, y: 2 },
+                { x: 22, y: 2 },
+                { x: 22, y: 14 },
+                { x: 2, y: 14 }
+            ]
+        },
+        {
+            fillColor: white,
+            lineColor: black,
+            points: [
+                { x: 8, y: 5 },
+                { x: 10, y: 5 },
+                { x: 12, y: 6 },
+                { x: 14, y: 5 },
+                { x: 16, y: 5 },
+                { x: 16, y: 9 },
+                { x: 14, y: 9 },
+                { x: 12, y: 11 },
+                { x: 10, y: 9 },
+	       { x: 8, y: 9 }
+            ]
+        },
+        {
+            fillColor: null,
+            lineColor: black,
+            points: [
+                { x: 12, y: 6 },
+                { x: 12, y: 11 }
+            ]
+        },
+        {
+            fillColor: brown,
+            lineColor: black,
+            circle: {
+                radius: 1,
+                center: { x:5, y: 8 }
+            }
+        },
+        {
+            fillColor: yellow,
+            lineColor: black,
+            circle: {
+                radius: 0.5,
+                center: { x:5, y: 8 }
+            }
+        },
+        {
+            fillColor: brown,
+            lineColor: black,
+            circle: {
+                radius: 1,
+                center: { x:19, y: 8 }
+            }
+        },
+        {
+            fillColor: yellow,
+            lineColor: black,
+            circle: {
+                radius: 0.5,
+                center: { x:19, y: 8 }
+            }
+        }
+    ]
+}
