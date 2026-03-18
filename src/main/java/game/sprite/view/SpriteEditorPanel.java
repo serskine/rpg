@@ -20,6 +20,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -42,6 +43,7 @@ public class SpriteEditorPanel extends JPanel {
     private JButton decreaseFontButton;
     private JLabel fontSizeLabel;
     private JCheckBox saturatedColorsCheckbox;
+    private JComboBox<String> spriteFileSelector;
     
     private SpriteFile currentSpriteFile;
     private List<Polygon> currentPolygons = new ArrayList<>();
@@ -113,17 +115,20 @@ public class SpriteEditorPanel extends JPanel {
          add(statusLabel, BorderLayout.SOUTH);
          
          // Setup interactions
-         setupInteractions();
-         
-         // Defer keyboard shortcuts setup until we're part of a frame
-         SwingUtilities.invokeLater(this::setupKeyboardShortcuts);
-         
-         // Initial state
-         initializeEmpty();
-         
-         // Load test.dat by default
-         SwingUtilities.invokeLater(this::loadTestDatByDefault);
-     }
+          setupInteractions();
+          
+          // Defer keyboard shortcuts setup until we're part of a frame
+          SwingUtilities.invokeLater(this::setupKeyboardShortcuts);
+          
+          // Populate sprite file list from working directory
+          SwingUtilities.invokeLater(this::refreshSpriteList);
+          
+          // Initial state
+          initializeEmpty();
+          
+          // Load test.dat by default
+          SwingUtilities.invokeLater(this::loadTestDatByDefault);
+      }
     
     private JPanel createToolbar() {
         final JPanel panel = new JPanel();
@@ -183,6 +188,25 @@ public class SpriteEditorPanel extends JPanel {
         saturatedColorsCheckbox.setFont(new Font("Dialog", Font.PLAIN, 13));
         saturatedColorsCheckbox.addActionListener(e -> onSaturatedColorsToggled());
         panel.add(saturatedColorsCheckbox);
+        
+        panel.add(new JSeparator(SwingConstants.VERTICAL));
+        
+        // Sprite file selector dropdown
+        final JLabel spriteLabel = new JLabel("Open Sprite:");
+        spriteLabel.setFont(new Font("Dialog", Font.PLAIN, 13));
+        panel.add(spriteLabel);
+        
+        spriteFileSelector = new JComboBox<>();
+        spriteFileSelector.setFont(new Font("Dialog", Font.PLAIN, 13));
+        spriteFileSelector.setPreferredSize(new Dimension(250, 30));
+        spriteFileSelector.addActionListener(e -> onSpriteFileSelected());
+        panel.add(spriteFileSelector);
+        
+        // Refresh sprite list button
+        final JButton refreshSpriteListButton = new JButton("Refresh List");
+        refreshSpriteListButton.setFont(new Font("Dialog", Font.PLAIN, 13));
+        refreshSpriteListButton.addActionListener(e -> onRefreshSpriteList());
+        panel.add(refreshSpriteListButton);
         
         return panel;
     }
@@ -548,8 +572,90 @@ public class SpriteEditorPanel extends JPanel {
              } else {
                  Logger.warn("Default test.dat file not found at: " + testDatPath);
              }
-         } catch (final Exception e) {
-             Logger.warn("Failed to load default test.dat: " + e.getMessage());
-         }
-     }
+          } catch (final Exception e) {
+              Logger.warn("Failed to load default test.dat: " + e.getMessage());
+          }
+      }
+      
+      /**
+       * Scan the working directory for .dat sprite files and populate the dropdown.
+       */
+      private void refreshSpriteList() {
+          spriteFileSelector.removeAllItems();
+          
+          if (lastOpenedDirectory == null || !lastOpenedDirectory.exists()) {
+              spriteFileSelector.addItem("(No directory selected)");
+              return;
+          }
+          
+          // Scan directory recursively for .dat files
+          final List<File> datFiles = new ArrayList<>();
+          scanForDatFiles(lastOpenedDirectory, datFiles);
+          
+          if (datFiles.isEmpty()) {
+              spriteFileSelector.addItem("(No .dat files found)");
+              return;
+          }
+          
+          // Sort by filename
+          datFiles.sort((a, b) -> a.getName().compareTo(b.getName()));
+          
+          // Add each file to dropdown
+          for (final File file : datFiles) {
+              spriteFileSelector.addItem(file.getAbsolutePath());
+          }
+          
+          statusLabel.setText("Found " + datFiles.size() + " sprite file(s)");
+      }
+      
+      /**
+       * Recursively scan a directory for .dat files.
+       */
+      private void scanForDatFiles(final File directory, final List<File> results) {
+          final File[] files = directory.listFiles();
+          if (files == null) {
+              return;
+          }
+          
+          for (final File file : files) {
+              if (file.isDirectory()) {
+                  // Recursively scan subdirectories
+                  scanForDatFiles(file, results);
+              } else if (file.getName().endsWith(".dat")) {
+                  results.add(file);
+              }
+          }
+      }
+      
+      /**
+       * Handle sprite file selection from dropdown.
+       */
+      private void onSpriteFileSelected() {
+          final Object selectedItem = spriteFileSelector.getSelectedItem();
+          if (selectedItem == null) {
+              return;
+          }
+          
+          final String selectedPath = selectedItem.toString();
+          
+          // Skip placeholder items
+          if (selectedPath.startsWith("(")) {
+              return;
+          }
+          
+          final File selectedFile = new File(selectedPath);
+          if (!selectedFile.exists()) {
+              statusLabel.setText("Selected file does not exist: " + selectedPath);
+              return;
+          }
+          
+          loadFile(selectedFile);
+      }
+      
+      /**
+       * Refresh the sprite list from the working directory.
+       */
+      private void onRefreshSpriteList() {
+          refreshSpriteList();
+      }
 }
